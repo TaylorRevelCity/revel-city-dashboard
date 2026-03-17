@@ -1,148 +1,387 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
+from datetime import date
 from utils.bq_client import run_query, TABLES
 
-st.set_page_config(page_title="Revel City - Rehab Costs", layout="wide")
-st.title("Revel City Rehab Cost Dashboard")
+st.set_page_config(page_title="Revel City - Connector Dashboard", layout="wide")
 
-# ---------- Load data ----------
-TABLE = TABLES["am_rehab_costs"]
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    .stApp { background-color: #f8f9fb; font-family: 'Inter', sans-serif; }
+    .block-container { padding-top: 1rem; max-width: 1400px; }
+    .section-banner {
+        background: #e8eaef; padding: 12px 20px; border-radius: 4px;
+        margin-bottom: 0.5rem;
+    }
+    .section-banner h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+    .chart-title {
+        font-size: 0.92rem; font-weight: 700; color: #202124;
+        text-align: center; margin-bottom: 0; padding: 0;
+    }
+    #MainMenu, footer, header { visibility: hidden; }
+    /* Tighten spacing around charts */
+    .stPlotlyChart { margin-top: -10px; }
+    /* White background for columns */
+    [data-testid="stColumn"] > div {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 10px 10px 4px 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+CHART_BG = dict(
+    paper_bgcolor="white", plot_bgcolor="white",
+    font=dict(color="#3c4043", size=12, family="Inter, Arial, sans-serif"),
+    hoverlabel=dict(bgcolor="rgba(255,255,255,1)", font_size=13, font_family="Inter, Arial", font_color="#333", bordercolor="#ccc"),
+    hovermode="closest",
+)
+
+def beveled_marker(color):
+    """Marker with soft highlight border for beveled look."""
+    return dict(
+        color=color,
+        line=dict(color="rgba(255,255,255,0.35)", width=2),
+    )
+
+def render_chart(fig, height=300, legend=None):
+    """Render Plotly chart as HTML with hover highlight effects.
+
+    legend: optional list of (label, color) tuples to render as an HTML legend
+            that highlights on hover. Pass trace index mapping via trace names.
+    """
+    hover_js = """
+    <script>
+    (function() {
+        var plot = document.getElementById('{div_id}');
+        var origColors = {};
+        var traceNames = {trace_names};
+
+        function saveOrigColors() {
+            if (Object.keys(origColors).length > 0) return;
+            for (var i = 0; i < plot.data.length; i++) {
+                var t = plot.data[i];
+                if (t.marker && t.marker.color) {
+                    origColors[i] = t.marker.color;
+                }
+            }
+        }
+
+        function hexToRgba(hex, alpha) {
+            hex = hex.replace('#', '');
+            var r = parseInt(hex.substring(0,2), 16);
+            var g = parseInt(hex.substring(2,4), 16);
+            var b = parseInt(hex.substring(4,6), 16);
+            return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
+
+        function fadeLegendItems(hoveredName) {
+            var items = document.querySelectorAll('.custom-legend-item');
+            items.forEach(function(el) {
+                if (hoveredName === null) {
+                    el.style.opacity = '1';
+                } else {
+                    el.style.opacity = el.getAttribute('data-name') === hoveredName ? '1' : '0.25';
+                }
+            });
+        }
+
+        plot.on('plotly_hover', function(data) {
+            saveOrigColors();
+            var pt = data.points[0];
+            var n = plot.data.length;
+            var hoveredName = traceNames[pt.curveNumber] || null;
+
+            fadeLegendItems(hoveredName);
+
+            for (var i = 0; i < n; i++) {
+                var trace = plot.data[i];
+
+                if (trace.type === 'bar' && trace.marker) {
+                    var isHoveredTrace = (i === pt.curveNumber);
+                    var baseColor = origColors[i] || trace.marker.color;
+                    var isHorizontal = trace.orientation === 'h';
+                    var cats = isHorizontal ? (trace.y || []) : (trace.x || []);
+                    var hoveredCat = isHorizontal ? pt.y : pt.x;
+                    var colors = [];
+                    for (var j = 0; j < cats.length; j++) {
+                        var c = typeof baseColor === 'string' ? baseColor : (baseColor[j] || baseColor);
+                        if (isHoveredTrace && String(cats[j]) === String(hoveredCat)) {
+                            colors.push(c);
+                        } else {
+                            colors.push(hexToRgba(c, 0.2));
+                        }
+                    }
+                    Plotly.restyle(plot, {'marker.color': [colors]}, [i]);
+                } else if (trace.type === 'scatter' || trace.type === 'scattergl') {
+                    Plotly.restyle(plot, {'opacity': (i === pt.curveNumber) ? 1 : 0.15}, [i]);
+                } else if (trace.type === 'pie') {
+                    var len = trace.labels ? trace.labels.length : 0;
+                    var pulls = [];
+                    var opacities = [];
+                    for (var j = 0; j < len; j++) {
+                        pulls.push(j === pt.pointIndex ? 0.06 : 0);
+                        opacities.push(j === pt.pointIndex ? 1 : 0.3);
+                    }
+                    Plotly.restyle(plot, {'pull': [pulls], 'marker.opacity': [opacities]}, [i]);
+                }
+            }
+        });
+
+        plot.on('plotly_unhover', function() {
+            fadeLegendItems(null);
+            var n = plot.data.length;
+            for (var i = 0; i < n; i++) {
+                var trace = plot.data[i];
+                if (trace.type === 'bar' && origColors[i] !== undefined) {
+                    var baseColor = origColors[i];
+                    Plotly.restyle(plot, {'marker.color': [baseColor]}, [i]);
+                } else if (trace.type === 'pie') {
+                    var len = trace.labels ? trace.labels.length : 0;
+                    var zeros = [];
+                    var ones = [];
+                    for (var j = 0; j < len; j++) { zeros.push(0); ones.push(1); }
+                    Plotly.restyle(plot, {'pull': [zeros], 'marker.opacity': [ones]}, [i]);
+                } else {
+                    Plotly.restyle(plot, {'opacity': 1}, [i]);
+                }
+            }
+        });
+    })();
+    </script>
+    """
+    import json, re
+    fig.update_layout(autosize=True)
+
+    # Build trace name list for JS
+    trace_names = [t.name or "" for t in fig.data]
+
+    html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False, config={"displayModeBar": False, "responsive": True})
+    match = re.search(r'id="([^"]+)"', html)
+    div_id = match.group(1) if match else ""
+
+    # Build HTML legend if provided
+    legend_html = ""
+    if legend:
+        items = "".join(
+            f'<span class="custom-legend-item" data-name="{label}" style="transition:opacity 0.15s;display:inline-flex;align-items:center;gap:4px;">'
+            f'<span style="display:inline-block;width:12px;height:12px;background:{color};border-radius:2px;"></span>{label}</span>'
+            for label, color in legend
+        )
+        legend_html = f'<div style="display:flex;justify-content:center;gap:18px;font-size:0.78rem;color:#555;margin-bottom:4px;">{items}</div>'
+
+    js = hover_js.replace("{div_id}", div_id).replace("{trace_names}", json.dumps(trace_names))
+    html += js
+    wrapper = f'''<div style="background:white; width:100%; overflow:visible;">
+        {legend_html}
+        {html}
+        <script>
+        (function() {{
+            var d = document.getElementById("{div_id}");
+            if (d) Plotly.Plots.resize(d);
+            window.addEventListener("resize", function() {{ if (d) Plotly.Plots.resize(d); }});
+        }})();
+        </script>
+    </div>'''
+    components.html(wrapper, height=height)
+
+# Consistent person colors across all charts
+PERSON_COLORS = {
+    "Scotty Patton": "#a0926c",   # tan
+    "Wesley Werner": "#c2703e",   # burnt orange
+    "Tony Franks": "#7a9a6d",     # sage green
+    "Camron Cathcart": "#8b6f5e", # warm brown
+    "Taylor Shelpuk": "#d4a857",  # gold
+    "Unknown": "#6b8f9e",         # muted teal
+}
 
 @st.cache_data(ttl=300)
-def load_data():
-    query = f"""
-        SELECT
-            property_address,
-            property_walker,
-            date_visited,
-            above_grade_sqft,
-            basement_sqft,
-            renovation_level,
-            bedroom_num,
-            bathroom_num,
-            list_price_arv,
-            purchase_price,
-            holding_days,
-            cost_type,
-            cost_category,
-            area,
-            SAFE_CAST(amount AS FLOAT64) AS amount
-        FROM `{TABLE}`
-        ORDER BY property_address, cost_category, area
-    """
-    return run_query(query)
+def load_tasks():
+    return run_query(f"SELECT * FROM `{TABLES['tasks']}`")
 
-df = load_data()
+@st.cache_data(ttl=300)
+def load_contacts():
+    return run_query(f"SELECT * FROM `{TABLES['connector_contacts']}`")
 
-if df.empty:
-    st.warning("No data found in AMRehabCalcCosts.")
-    st.stop()
+tasks_raw = load_tasks()
+contacts_raw = load_contacts()
 
-# ---------- Sidebar filters ----------
-st.sidebar.header("Filters")
+# ═══════════════════════════════════════════════════
+# HEADER + FILTERS
+# ═══════════════════════════════════════════════════
+all_people = sorted(set(
+    tasks_raw["assigned_to"].dropna().unique().tolist() +
+    contacts_raw["relationship_manager"].dropna().unique().tolist()
+))
 
-properties = sorted(df["property_address"].dropna().unique())
-selected_property = st.sidebar.selectbox("Property", ["All"] + properties)
+ban1, fil1, fil2 = st.columns([3, 2, 2])
+ban1.markdown('<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>', unsafe_allow_html=True)
+selected_person = fil1.selectbox("Acquisition Manager", ["All"] + all_people)
+min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
+date_range = None
+if pd.notna(min_date) and pd.notna(max_date):
+    date_range = fil2.date_input("Select date range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 
-if selected_property != "All":
-    df = df[df["property_address"] == selected_property]
+tasks = tasks_raw.copy()
+if selected_person != "All":
+    tasks = tasks[tasks["assigned_to"] == selected_person]
+if date_range and len(date_range) == 2:
+    tasks = tasks[(tasks["due_date"] >= pd.Timestamp(date_range[0])) & (tasks["due_date"] <= pd.Timestamp(date_range[1]))]
 
-walkers = sorted(df["property_walker"].dropna().unique())
-selected_walker = st.sidebar.selectbox("Walker", ["All"] + list(walkers))
+contacts = contacts_raw.copy()
+if selected_person != "All":
+    contacts = contacts[contacts["relationship_manager"] == selected_person]
 
-if selected_walker != "All":
-    df = df[df["property_walker"] == selected_walker]
+c1, c2, c3 = st.columns(3)
 
-# ---------- Property info header ----------
-if selected_property != "All":
-    row = df.iloc[0]
-    cols = st.columns(6)
-    cols[0].metric("Walker", row.get("property_walker", "—"))
-    cols[1].metric("Date Visited", str(row.get("date_visited", "—")))
-    cols[2].metric("Above Grade SqFt", row.get("above_grade_sqft", "—"))
-    cols[3].metric("Basement SqFt", row.get("basement_sqft") or "—")
-    cols[4].metric("Bedrooms", row.get("bedroom_num", "—"))
-    cols[5].metric("Bathrooms", row.get("bathroom_num", "—"))
+# 1) Outstanding Follow-Ups
+with c1:
+    st.markdown('<p class="chart-title">Outstanding Follow-Ups</p>', unsafe_allow_html=True)
+    outstanding = tasks[tasks["follow_up_status"].isin(["Incomplete", "Late"])].copy()
+    if not outstanding.empty:
+        outstanding["display_status"] = outstanding.apply(
+            lambda r: "Open to Steal" if r["follow_up_status"] == "Late" and r.get("check_in") == "Open to Steal Relationship" else r["follow_up_status"],
+            axis=1,
+        )
+        ost = outstanding.groupby(["assigned_to", "display_status"]).size().reset_index(name="count")
+        order = ost.groupby("assigned_to")["count"].sum().sort_values(ascending=True).index.tolist()
+        fig = go.Figure()
+        for status, color in [("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")]:
+            s = ost[ost["display_status"] == status]
+            fig.add_trace(go.Bar(
+                y=s["assigned_to"], x=s["count"], name=status, orientation="h",
+                marker=beveled_marker(color),
+                text=s["count"], textposition="inside",
+                textfont=dict(size=14, color="white"), insidetextanchor="middle", width=0.5,
+                hovertemplate="<b>%{y}</b><br>" + status + ": <b>%{x}</b><extra></extra>",
+            ))
+        fig.update_layout(**CHART_BG, barmode="stack", height=300,
+            yaxis=dict(categoryorder="array", categoryarray=order, tickfont=dict(size=12), automargin=True),
+            xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999")),
+            showlegend=False,
+            margin=dict(l=120, r=15, t=5, b=30))
+        render_chart(fig, height=320, legend=[
+            ("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")
+        ])
 
-    cols2 = st.columns(3)
-    arv = row.get("list_price_arv")
-    purchase = row.get("purchase_price")
-    renovation = row.get("renovation_level") or "—"
-    cols2[0].metric("List Price / ARV", f"${arv:,.0f}" if pd.notna(arv) else "—")
-    cols2[1].metric("Purchase Price", f"${purchase:,.0f}" if pd.notna(purchase) else "—")
-    cols2[2].metric("Renovation Level", renovation)
+# 2) Completed Follow-Ups
+with c2:
+    st.markdown('<p class="chart-title">Completed Follow-Ups</p>', unsafe_allow_html=True)
+    completed = tasks[tasks["follow_up_status"] == "Complete"]
+    if not completed.empty:
+        comp = completed.groupby("assigned_to").size().reset_index(name="count").sort_values("count", ascending=True)
+        fig = go.Figure(go.Bar(
+            y=comp["assigned_to"], x=comp["count"], orientation="h",
+            marker=beveled_marker("#7a9a6d"),
+            text=comp["count"], textposition="inside",
+            textfont=dict(size=14, color="white"), insidetextanchor="middle", width=0.5,
+            hovertemplate="<b>%{y}</b><br>Completed: <b>%{x}</b><extra></extra>",
+        ))
+        fig.update_layout(**CHART_BG, height=300, showlegend=False,
+            yaxis=dict(tickfont=dict(size=12), automargin=True),
+            xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999"), automargin=True),
+            margin=dict(l=5, r=15, t=10, b=30))
+        render_chart(fig, height=320)
 
-# ---------- Summary KPIs ----------
+# 3) Upcoming Follow-Ups
+with c3:
+    st.markdown('<p class="chart-title">Upcoming Follow-Ups</p>', unsafe_allow_html=True)
+    task_time = tasks[tasks["due_date"] >= pd.Timestamp(date.today())].copy()
+    task_time["assigned_to"] = task_time["assigned_to"].fillna("null")
+    if not task_time.empty:
+        task_time["month"] = task_time["due_date"].values.astype("datetime64[M]")
+        upc = task_time.groupby(["month", "assigned_to"]).size().reset_index(name="count")
+        fig = px.line(upc, x="month", y="count", color="assigned_to", markers=True,
+                      color_discrete_map=PERSON_COLORS)
+        fig.update_traces(line=dict(width=3), marker=dict(size=7, line=dict(color="rgba(0,0,0,0.2)", width=1.5)))
+        fig.update_layout(**CHART_BG, height=300,
+            yaxis=dict(gridcolor="#f0f0f0", title="", dtick=10, zeroline=False),
+            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False),
+            legend=dict(orientation="h", y=-0.3, x=0, title="", font=dict(size=10)),
+            margin=dict(l=5, r=15, t=10, b=5))
+        render_chart(fig, height=350)
+
+# ═══════════════════════════════════════════════════
+# SECTION 2: Connector Contacts
+# ═══════════════════════════════════════════════════
 st.markdown("---")
 
-total_cost = df["amount"].sum()
-num_properties = df["property_address"].nunique()
-num_line_items = len(df)
 
-kpi1, kpi2, kpi3 = st.columns(3)
-kpi1.metric("Total Estimated Cost", f"${total_cost:,.2f}")
-kpi2.metric("Properties", num_properties)
-kpi3.metric("Line Items", num_line_items)
+c4, c5, c6 = st.columns(3)
 
-# ---------- Cost by category ----------
-st.markdown("---")
-st.subheader("Cost by Category")
+# 4) Outstanding Tasks vs Connector Contacts
+with c4:
+    st.markdown('<p class="chart-title">Outstanding Tasks vs Connector Contacts</p>', unsafe_allow_html=True)
+    if not contacts.empty:
+        by_mgr = contacts.groupby("relationship_manager").agg(
+            total=("podio_item_id", "count"),
+            level_assigned=("level", lambda x: x.notna().sum()),
+        ).reset_index().sort_values("total", ascending=False)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=by_mgr["relationship_manager"], y=by_mgr["level_assigned"],
+            name="Level Assigned",
+            marker=beveled_marker("#a0926c"),
+            text=by_mgr["level_assigned"], textposition="outside",
+            textfont=dict(size=12), width=0.3,
+            hovertemplate="<b>%{x}</b><br>Level Assigned: <b>%{y}</b><extra></extra>",
+        ))
+        fig.add_trace(go.Bar(
+            x=by_mgr["relationship_manager"], y=by_mgr["total"],
+            name="Total Connectors",
+            marker=beveled_marker("#c2703e"),
+            text=by_mgr["total"], textposition="outside",
+            textfont=dict(size=12), width=0.3,
+            hovertemplate="<b>%{x}</b><br>Total Connectors: <b>%{y}</b><extra></extra>",
+        ))
+        fig.update_layout(**CHART_BG, barmode="group", height=340, bargroupgap=0.08,
+            yaxis=dict(gridcolor="#f0f0f0", title="", range=[0, by_mgr["total"].max() * 1.2], zeroline=False, automargin=True),
+            xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
+            showlegend=False,
+            margin=dict(l=10, r=10, t=5, b=60))
+        render_chart(fig, height=370, legend=[
+            ("Level Assigned", "#a0926c"), ("Total Connectors", "#c2703e")
+        ])
 
-cat_totals = (
-    df.groupby("cost_category", dropna=False)["amount"]
-    .sum()
-    .reset_index()
-    .sort_values("amount", ascending=False)
-)
+# 5) Connector Type
+with c5:
+    st.markdown('<p class="chart-title">Connector Type</p>', unsafe_allow_html=True)
+    if not contacts.empty:
+        tc = contacts["connector_type"].fillna("Unknown").value_counts().reset_index()
+        tc.columns = ["connector_type", "count"]
+        cmap = {"Wholesaler": "#a0926c", "Agent": "#c2703e", "Investor": "#7a9a6d",
+                "Other": "#d4a857", "Attorney": "#8b6f5e", "Unknown": "#6b8f9e"}
+        fig = px.pie(tc, values="count", names="connector_type", hole=0.5,
+                     color="connector_type", color_discrete_map=cmap)
+        fig.update_traces(textinfo="value", textposition="inside",
+            textfont=dict(size=16, color="white"),
+            marker=dict(line=dict(color="rgba(255,255,255,0.4)", width=2.5)))
+        fig.update_layout(**CHART_BG, height=340,
+            legend=dict(orientation="h", y=-0.08, xanchor="center", x=0.5, font=dict(size=11), title=""),
+            margin=dict(l=10, r=10, t=10, b=10))
+        render_chart(fig, height=370)
 
-fig_cat = px.bar(
-    cat_totals,
-    x="cost_category",
-    y="amount",
-    labels={"cost_category": "Category", "amount": "Amount ($)"},
-    text_auto="$,.0f",
-)
-fig_cat.update_layout(xaxis_tickangle=-45, showlegend=False)
-st.plotly_chart(fig_cat, use_container_width=True)
+# 6) New Connector Contacts
+with c6:
+    st.markdown('<p class="chart-title">New Connector Contacts</p>', unsafe_allow_html=True)
+    if not contacts.empty:
+        ct = contacts.copy()
+        ct["month"] = ct["created_on"].values.astype("datetime64[M]")
+        ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
+        new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
+        fig = px.bar(new_c, x="month", y="count", color="relationship_manager", barmode="stack",
+                     color_discrete_map=PERSON_COLORS)
+        fig.update_traces(marker_line=dict(color="rgba(255,255,255,0.35)", width=2))
+        fig.update_layout(**CHART_BG, height=340, bargap=0.2,
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False),
+            xaxis=dict(title="", tickformat="%b\n%Y", gridcolor="#f0f0f0", zeroline=False),
+            legend=dict(orientation="h", y=-0.3, x=0, font=dict(size=10), title=""),
+            margin=dict(l=5, r=10, t=10, b=5))
+        render_chart(fig, height=370)
 
-# ---------- Cost breakdown table ----------
-st.subheader("Cost Breakdown")
-
-display_df = (
-    df[["property_address", "cost_category", "area", "amount"]]
-    .copy()
-    .rename(columns={
-        "property_address": "Property",
-        "cost_category": "Category",
-        "area": "Line Item",
-        "amount": "Amount",
-    })
-)
-display_df["Amount"] = display_df["Amount"].apply(
-    lambda x: f"${x:,.2f}" if pd.notna(x) else "$0.00"
-)
-
-st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-# ---------- Cost by property (multi-property view) ----------
-if selected_property == "All" and num_properties > 1:
-    st.markdown("---")
-    st.subheader("Total Cost by Property")
-
-    prop_totals = (
-        df.groupby("property_address", dropna=False)["amount"]
-        .sum()
-        .reset_index()
-        .sort_values("amount", ascending=False)
-    )
-
-    fig_prop = px.bar(
-        prop_totals,
-        x="property_address",
-        y="amount",
-        labels={"property_address": "Property", "amount": "Total Cost ($)"},
-        text_auto="$,.0f",
-    )
-    fig_prop.update_layout(xaxis_tickangle=-45, showlegend=False)
-    st.plotly_chart(fig_prop, use_container_width=True)

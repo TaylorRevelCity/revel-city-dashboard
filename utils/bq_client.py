@@ -7,6 +7,8 @@ PROJECT_ID = "revel-city-database"
 
 TABLES = {
     "am_rehab_costs": f"{PROJECT_ID}.AcquisitionManagerRehabCalc.AMRehabCalcCosts",
+    "tasks": f"{PROJECT_ID}.ContactsPodio.Tasks",
+    "connector_contacts": f"{PROJECT_ID}.ContactsPodio.ConnectorContacts",
 }
 
 
@@ -14,7 +16,7 @@ TABLES = {
 def get_client() -> bigquery.Client:
     credentials = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
-        scopes=["https://www.googleapis.com/auth/bigquery"],
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
     )
     return bigquery.Client(credentials=credentials, project=PROJECT_ID)
 
