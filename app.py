@@ -38,18 +38,23 @@ st.markdown("""
     [data-testid="stExpander"] {
         position: relative;
         z-index: 100;
+        height: 42px;
+        overflow: visible;
+    }
+    [data-testid="stExpander"] details {
+        position: absolute;
+        width: 100%;
+        background: white;
+        border-radius: 8px;
+    }
+    [data-testid="stExpander"] details[open] {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 1px solid #ddd;
     }
     [data-testid="stExpander"] details > div[data-testid="stExpanderDetails"] {
-        position: absolute;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        padding: 8px 12px;
-        width: 100%;
-        max-height: 300px;
+        max-height: 250px;
         overflow-y: auto;
-        z-index: 101;
+        padding: 4px 8px;
     }
     /* Slider track: grey base, colored active range */
     [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:first-child {
