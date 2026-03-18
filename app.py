@@ -485,9 +485,9 @@ with c6:
                 hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Count: <b>%{y}</b><extra></extra>",
             ))
         fig.update_layout(**CHART_BG, barmode="stack", height=340, bargap=0.3,
-            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=10),
-            xaxis=dict(title="", tickformat="%b\n%Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=5))
+            margin=dict(l=10, r=10, t=10, b=40))
         render_chart(fig, height=370, legend=legend_items)
 
