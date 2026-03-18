@@ -69,12 +69,14 @@ components.html("""
 (function() {
     function init() {
         var doc = window.parent.document;
-        doc.addEventListener('click', function(e) {
-            doc.querySelectorAll('[data-testid="stExpander"] details[open]').forEach(function(det) {
-                if (!det.contains(e.target)) {
-                    det.removeAttribute('open');
-                }
-            });
+        doc.addEventListener('mousedown', function(e) {
+            setTimeout(function() {
+                doc.querySelectorAll('[data-testid="stExpander"] details[open]').forEach(function(det) {
+                    if (!det.contains(e.target) && !e.target.closest('[data-testid="stExpander"]')) {
+                        det.removeAttribute('open');
+                    }
+                });
+            }, 50);
         });
     }
     init();
