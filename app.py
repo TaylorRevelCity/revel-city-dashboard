@@ -34,9 +34,14 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         height: 100%;
     }
-    /* Make column rows stretch equally */
+    /* Make columns equal height and vertically center content */
     [data-testid="stHorizontalBlock"] {
         align-items: stretch;
+    }
+    [data-testid="stColumn"] > div {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
     }
     /* Close expander on outside click - handled by JS below */
     /* Expander dropdown overlay */
