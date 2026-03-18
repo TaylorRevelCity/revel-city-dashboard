@@ -50,11 +50,12 @@ def beveled_marker(color):
         line=dict(color="rgba(255,255,255,0.35)", width=2),
     )
 
-def render_chart(fig, height=300, legend=None):
+def render_chart(fig, height=300, legend=None, legend_position="top"):
     """Render Plotly chart as HTML with hover highlight effects.
 
     legend: optional list of (label, color) tuples to render as an HTML legend
             that highlights on hover. Pass trace index mapping via trace names.
+    legend_position: "top" (default) or "bottom"
     """
     hover_js = """
     <script>
@@ -217,13 +218,16 @@ def render_chart(fig, height=300, legend=None):
             f'<span style="display:inline-block;width:12px;height:12px;background:{color};border-radius:2px;"></span>{label}</span>'
             for label, color in legend
         )
-        legend_html = f'<div style="display:flex;justify-content:center;gap:18px;font-size:0.78rem;color:#555;margin-bottom:4px;">{items}</div>'
+        legend_html = f'<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px 18px;font-size:0.78rem;color:#555;margin-bottom:4px;">{items}</div>'
 
     js = hover_js.replace("{div_id}", div_id).replace("{trace_names}", json.dumps(trace_names))
     html += js
+    top_legend = legend_html if legend_position == "top" else ""
+    bottom_legend = legend_html if legend_position == "bottom" else ""
     wrapper = f'''<div style="background:white; width:100%; overflow:visible;">
-        {legend_html}
+        {top_legend}
         {html}
+        {bottom_legend}
         <script>
         (function() {{
             var d = document.getElementById("{div_id}");
@@ -472,6 +476,13 @@ with c6:
         ct = contacts.copy()
         ct["month"] = pd.to_datetime(ct["created_on"]).values.astype("datetime64[M]")
         ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
+        # Exclude the first month if it's a bulk import outlier
+        month_totals = ct.groupby("month").size()
+        if len(month_totals) > 1:
+            first_month = month_totals.index.min()
+            rest_avg = month_totals.drop(first_month).mean()
+            if month_totals[first_month] > rest_avg * 4:
+                ct = ct[ct["month"] > first_month]
         new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
         fig = go.Figure()
         legend_items = []
@@ -484,10 +495,11 @@ with c6:
                 marker=beveled_marker(color),
                 hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Count: <b>%{y}</b><extra></extra>",
             ))
-        fig.update_layout(**CHART_BG, barmode="stack", height=340, bargap=0.3,
+        fig.update_layout(**CHART_BG, barmode="stack", height=300, bargap=0.3,
             yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
-            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
+            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1",
+                       tickangle=-30, tickfont=dict(size=10)),
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=40))
-        render_chart(fig, height=370, legend=legend_items)
+            margin=dict(l=10, r=10, t=5, b=50))
+        render_chart(fig, height=380, legend=legend_items, legend_position="bottom")
 
