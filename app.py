@@ -404,10 +404,11 @@ with c5:
         tc.columns = ["connector_type", "count"]
         cmap = {"Wholesaler": "#a0926c", "Agent": "#c2703e", "Investor": "#7a9a6d",
                 "Other": "#d4a857", "Attorney": "#8b6f5e", "Unknown": "#6b8f9e"}
+        pie_colors = [cmap.get(t, "#999") for t in tc["connector_type"]]
         fig = go.Figure(go.Pie(
             labels=tc["connector_type"], values=tc["count"], hole=0.5,
             marker=dict(
-                colors=[cmap.get(t, "#999") for t in tc["connector_type"]],
+                colors=pie_colors,
                 line=dict(color="rgba(255,255,255,0.4)", width=2.5),
             ),
             textinfo="value", textposition="inside",
@@ -417,7 +418,52 @@ with c5:
         fig.update_layout(**CHART_BG, height=340,
             legend=dict(orientation="h", y=-0.08, xanchor="center", x=0.5, font=dict(size=11), title=""),
             margin=dict(l=10, r=10, t=10, b=10))
-        render_chart(fig, height=370)
+
+        import json as _json
+        pie_html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False,
+                               config={"displayModeBar": False, "responsive": True})
+        import re as _re
+        _m = _re.search(r'id="([^"]+)"', pie_html)
+        _div_id = _m.group(1) if _m else ""
+        _colors_json = _json.dumps(pie_colors)
+        pie_js = f'''<script>
+        (function() {{
+            function init() {{
+                var plot = document.getElementById("{_div_id}");
+                if (!plot || !plot.on) {{ setTimeout(init, 200); return; }}
+                var origColors = {_colors_json};
+                plot.on("plotly_hover", function(data) {{
+                    var pt = data.points[0];
+                    var idx = pt.pointNumber;
+                    var len = origColors.length;
+                    var newColors = [];
+                    var pulls = [];
+                    for (var j = 0; j < len; j++) {{
+                        pulls.push(j === idx ? 0.06 : 0);
+                        if (j === idx) {{
+                            newColors.push(origColors[j]);
+                        }} else {{
+                            var hex = origColors[j].replace("#","");
+                            var r = parseInt(hex.substring(0,2),16);
+                            var g = parseInt(hex.substring(2,4),16);
+                            var b = parseInt(hex.substring(4,6),16);
+                            newColors.push("rgba("+r+","+g+","+b+",0.2)");
+                        }}
+                    }}
+                    Plotly.restyle(plot, {{"pull": [pulls], "marker.colors": [newColors]}}, [0]);
+                }});
+                plot.on("plotly_unhover", function() {{
+                    var len = origColors.length;
+                    var zeros = [];
+                    for (var j = 0; j < len; j++) zeros.push(0);
+                    Plotly.restyle(plot, {{"pull": [zeros], "marker.colors": [origColors]}}, [0]);
+                }});
+            }}
+            init();
+        }})();
+        </script>'''
+        wrapper = f'<div style="background:white;width:100%;overflow:visible;">{pie_html}{pie_js}</div>'
+        components.html(wrapper, height=370)
 
 # 6) New Connector Contacts
 with c6:
