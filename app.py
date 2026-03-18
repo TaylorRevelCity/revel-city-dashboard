@@ -293,7 +293,7 @@ with c2:
 with c3:
     st.markdown('<p class="chart-title">Upcoming Follow-Ups</p>', unsafe_allow_html=True)
     task_time = tasks[tasks["due_date"] >= pd.Timestamp(date.today())].copy()
-    task_time["assigned_to"] = task_time["assigned_to"].fillna("null")
+    task_time["assigned_to"] = task_time["assigned_to"].fillna("Unassigned")
     if not task_time.empty:
         task_time["month"] = task_time["due_date"].values.astype("datetime64[M]")
         upc = task_time.groupby(["month", "assigned_to"]).size().reset_index(name="count")
@@ -301,10 +301,10 @@ with c3:
                       color_discrete_map=PERSON_COLORS)
         fig.update_traces(line=dict(width=3), marker=dict(size=7, line=dict(color="rgba(0,0,0,0.2)", width=1.5)))
         fig.update_layout(**CHART_BG, height=300,
-            yaxis=dict(gridcolor="#f0f0f0", title="", dtick=10, zeroline=False),
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
             xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False),
             legend=dict(orientation="h", y=-0.3, x=0, title="", font=dict(size=10)),
-            margin=dict(l=5, r=15, t=10, b=5))
+            margin=dict(l=10, r=15, t=10, b=5))
         render_chart(fig, height=350)
 
 # ═══════════════════════════════════════════════════
