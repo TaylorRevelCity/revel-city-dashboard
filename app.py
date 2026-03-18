@@ -15,9 +15,9 @@ st.markdown("""
     .stApp { background-color: #f8f9fb; font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1rem; max-width: 1400px; }
     .section-banner {
-        background: #e8eaef; padding: 12px 20px; border-radius: 8px;
-        margin: -10px -10px -4px -10px; display: flex; align-items: center; justify-content: center;
-        min-height: 60px;
+        background: #e8eaef; padding: 12px 20px; border-radius: 4px;
+        display: flex; align-items: center; justify-content: center;
+        height: 100%; min-height: 44px; box-sizing: border-box;
     }
     .section-banner h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
     .chart-title {
