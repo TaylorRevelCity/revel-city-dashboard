@@ -33,6 +33,22 @@ st.markdown("""
         padding: 10px 10px 4px 10px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
+    /* Expander dropdown overlay */
+    [data-testid="stExpander"] {
+        position: relative;
+        z-index: 100;
+    }
+    [data-testid="stExpander"] details[open] > div {
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 8px 12px;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+    }
     /* Slider track: grey base, colored active range */
     [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:first-child {
         background-color: #ddd !important;
