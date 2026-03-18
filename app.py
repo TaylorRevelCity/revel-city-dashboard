@@ -301,8 +301,8 @@ with c3:
                       color_discrete_map=PERSON_COLORS)
         fig.update_traces(line=dict(width=2), marker=dict(size=6, line=dict(color="rgba(0,0,0,0.2)", width=1.5)))
         fig.update_layout(**CHART_BG, height=300,
-            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=1),
-            xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False, dtick=7*86400000, ticklabelmode="period"),
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=5),
+            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
             legend=dict(orientation="h", y=-0.3, x=0, title="", font=dict(size=10)),
             margin=dict(l=10, r=15, t=10, b=5))
         render_chart(fig, height=350)
