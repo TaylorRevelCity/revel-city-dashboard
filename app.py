@@ -101,7 +101,7 @@ def render_chart(fig, height=300, legend=None):
             });
         }
 
-        plot.on('plotly_hover', function(data) {
+        function handleHover(data) {
             saveOrigColors();
             var pt = data.points[0];
             var n = plot.data.length;
@@ -141,7 +141,8 @@ def render_chart(fig, height=300, legend=None):
                     } else {
                         Plotly.restyle(plot, {'opacity': 0.15}, [i]);
                     }
-                } else if (trace.type === 'pie') {
+                } else if (trace.type === 'pie' || trace.type === 'domain') {
+                    console.log('PIE HOVER', i, pt.pointIndex, trace.type, trace.marker);
                     if (!origColors[i] && trace.marker && trace.marker.colors) {
                         origColors[i] = trace.marker.colors.slice();
                     }
@@ -157,6 +158,14 @@ def render_chart(fig, height=300, legend=None):
                     Plotly.restyle(plot, {'pull': [pulls], 'marker.colors': [newColors]}, [i]);
                 }
             }
+        }
+        plot.on('plotly_hover', handleHover);
+        plot.on('plotly_click', function(data) {
+            var pt = data.points[0];
+            var trace = plot.data[pt.curveNumber];
+            if (trace.type === 'pie' || trace.type === 'domain') {
+                handleHover(data);
+            }
         });
 
         plot.on('plotly_unhover', function() {
@@ -167,7 +176,7 @@ def render_chart(fig, height=300, legend=None):
                 if (trace.type === 'bar' && origColors[i] !== undefined) {
                     var baseColor = origColors[i];
                     Plotly.restyle(plot, {'marker.color': [baseColor]}, [i]);
-                } else if (trace.type === 'pie') {
+                } else if (trace.type === 'pie' || trace.type === 'domain') {
                     var len2 = trace.labels ? trace.labels.length : 0;
                     var zeros = [];
                     for (var j = 0; j < len2; j++) { zeros.push(0); }
