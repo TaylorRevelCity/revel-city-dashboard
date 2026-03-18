@@ -122,9 +122,10 @@ def render_chart(fig, height=300, legend=None, legend_position="top"):
                     var cats = isHorizontal ? (trace.y || []) : (trace.x || []);
                     var hoveredCat = isHorizontal ? pt.y : pt.x;
                     var colors = [];
+                    var hoveredIdx = pt.pointIndex !== undefined ? pt.pointIndex : pt.pointNumber;
                     for (var j = 0; j < cats.length; j++) {
                         var c = typeof baseColor === 'string' ? baseColor : (baseColor[j] || baseColor);
-                        if (isHoveredTrace && String(cats[j]) === String(hoveredCat)) {
+                        if (isHoveredTrace && j === hoveredIdx) {
                             colors.push(c);
                         } else {
                             colors.push(hexToRgba(c, 0.2));
