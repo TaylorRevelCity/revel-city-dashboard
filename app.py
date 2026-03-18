@@ -17,7 +17,7 @@ st.markdown("""
     .section-banner {
         background: #e8eaef; border-radius: 8px;
         padding: 10px 20px; text-align: center;
-        margin-top: -8px;
+        margin-top: -16px;
     }
     .section-banner h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
     .chart-title {
