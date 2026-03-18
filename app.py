@@ -61,16 +61,26 @@ st.markdown("""
         background-color: #ddd !important;
     }
 </style>
-<script>
-document.addEventListener('click', function(e) {
-    document.querySelectorAll('[data-testid="stExpander"] details[open]').forEach(function(det) {
-        if (!det.contains(e.target)) {
-            det.removeAttribute('open');
-        }
-    });
-});
-</script>
 """, unsafe_allow_html=True)
+
+# Auto-close expander on outside click
+components.html("""
+<script>
+(function() {
+    function init() {
+        var doc = window.parent.document;
+        doc.addEventListener('click', function(e) {
+            doc.querySelectorAll('[data-testid="stExpander"] details[open]').forEach(function(det) {
+                if (!det.contains(e.target)) {
+                    det.removeAttribute('open');
+                }
+            });
+        });
+    }
+    init();
+})();
+</script>
+""", height=0)
 
 CHART_BG = dict(
     paper_bgcolor="white", plot_bgcolor="white",
