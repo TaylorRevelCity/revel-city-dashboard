@@ -274,7 +274,14 @@ selected_person = fil1.selectbox("Acquisition Manager", ["All"] + all_people)
 min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
 date_range = None
 if pd.notna(min_date) and pd.notna(max_date):
-    date_range = fil2.date_input("Select date range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+    min_d = pd.Timestamp(min_date).date()
+    max_d = pd.Timestamp(max_date).date()
+    date_range = fil2.slider(
+        "Date Range",
+        min_value=min_d, max_value=max_d,
+        value=(min_d, max_d),
+        format="MM/DD/YYYY",
+    )
 
 tasks = tasks_raw.copy()
 if selected_person != "All":
