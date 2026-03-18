@@ -33,6 +33,11 @@ st.markdown("""
         border-radius: 8px;
         padding: 10px 10px 4px 10px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        height: 100%;
+    }
+    /* Make column rows stretch equally */
+    [data-testid="stHorizontalBlock"] {
+        align-items: stretch;
     }
     /* Close expander on outside click - handled by JS below */
     /* Expander dropdown overlay */
