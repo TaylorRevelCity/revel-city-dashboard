@@ -39,7 +39,7 @@ st.markdown("""
         position: relative;
         z-index: 100;
     }
-    [data-testid="stExpander"] details[open] > div {
+    [data-testid="stExpander"] details > div[data-testid="stExpanderDetails"] {
         position: absolute;
         background: white;
         border: 1px solid #ddd;
@@ -49,6 +49,7 @@ st.markdown("""
         width: 100%;
         max-height: 300px;
         overflow-y: auto;
+        z-index: 101;
     }
     /* Slider track: grey base, colored active range */
     [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:first-child {
