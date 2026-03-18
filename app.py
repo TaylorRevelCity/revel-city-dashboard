@@ -308,7 +308,7 @@ with c2:
 # 3) Upcoming Follow-Ups
 with c3:
     st.markdown('<p class="chart-title">Upcoming Follow-Ups</p>', unsafe_allow_html=True)
-    task_time = tasks[tasks["due_date"] >= pd.Timestamp(date.today())].copy()
+    task_time = tasks[(tasks["due_date"] >= pd.Timestamp(date.today())) & (tasks["follow_up_status"].isin(["Incomplete", "Late"]))].copy()
     task_time["assigned_to"] = task_time["assigned_to"].fillna("Unassigned")
     if not task_time.empty:
         task_time["day"] = pd.to_datetime(task_time["due_date"]).dt.date
