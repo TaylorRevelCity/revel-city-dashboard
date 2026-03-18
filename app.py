@@ -280,7 +280,14 @@ all_people = sorted(set(
 
 ban1, fil1, fil2 = st.columns([3, 2, 2])
 ban1.markdown('<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>', unsafe_allow_html=True)
-selected_people = fil1.multiselect("Acquisition Manager", all_people, default=all_people)
+with fil1:
+    with st.expander("Acquisition Manager", expanded=False):
+        all_selected = st.checkbox("All", value=True, key="am_all")
+        selected_people = []
+        for person in all_people:
+            checked = st.checkbox(person, value=all_selected, key=f"am_{person}", disabled=all_selected)
+            if all_selected or checked:
+                selected_people.append(person)
 min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
 date_range = None
 if pd.notna(min_date) and pd.notna(max_date):
