@@ -14,12 +14,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     .stApp { background-color: #f8f9fb; font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1rem; max-width: 1400px; }
-    .section-banner {
-        background: #e8eaef; padding: 12px 20px; border-radius: 4px;
-        display: flex; align-items: center; justify-content: center;
-        height: 100%; min-height: 44px; box-sizing: border-box;
-    }
-    .section-banner h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+    .section-banner h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 0; text-align: center; }
     .chart-title {
         font-size: 0.92rem; font-weight: 700; color: #202124;
         text-align: center; margin-bottom: 0; padding: 0;
@@ -38,6 +33,13 @@ st.markdown("""
     /* Make column rows stretch equally */
     [data-testid="stHorizontalBlock"] {
         align-items: stretch;
+    }
+    /* First row, first column = grey banner */
+    [data-testid="stHorizontalBlock"]:first-of-type [data-testid="stColumn"]:first-child > div {
+        background: #e8eaef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     /* Close expander on outside click - handled by JS below */
     /* Expander dropdown overlay */
