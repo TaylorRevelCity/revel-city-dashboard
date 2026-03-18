@@ -328,7 +328,19 @@ all_people = sorted(set(
 ))
 
 ban1, fil1, fil2 = st.columns([3, 2, 2])
-ban1.markdown('<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>', unsafe_allow_html=True)
+ban1.markdown('''<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>
+<style>
+    div[data-testid="stColumn"]:has(.section-banner) > div {
+        background: #e8eaef !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stColumn"]:has(.section-banner) .section-banner {
+        background: transparent; padding: 0;
+    }
+</style>
+''', unsafe_allow_html=True)
 with fil1:
     with st.expander("Acquisition Manager", expanded=False):
         # Track previous All state to detect toggle
