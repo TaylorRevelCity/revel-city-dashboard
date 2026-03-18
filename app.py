@@ -33,6 +33,7 @@ st.markdown("""
         padding: 10px 10px 4px 10px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
+    /* Close expander on outside click - handled by JS below */
     /* Expander dropdown overlay */
     [data-testid="stExpander"] {
         position: relative;
@@ -60,6 +61,15 @@ st.markdown("""
         background-color: #ddd !important;
     }
 </style>
+<script>
+document.addEventListener('click', function(e) {
+    document.querySelectorAll('[data-testid="stExpander"] details[open]').forEach(function(det) {
+        if (!det.contains(e.target)) {
+            det.removeAttribute('open');
+        }
+    });
+});
+</script>
 """, unsafe_allow_html=True)
 
 CHART_BG = dict(
