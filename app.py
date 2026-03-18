@@ -295,7 +295,7 @@ with c3:
     task_time = tasks[tasks["due_date"] >= pd.Timestamp(date.today())].copy()
     task_time["assigned_to"] = task_time["assigned_to"].fillna("Unassigned")
     if not task_time.empty:
-        task_time["day"] = task_time["due_date"].dt.date
+        task_time["day"] = pd.to_datetime(task_time["due_date"]).dt.date
         upc = task_time.groupby(["day", "assigned_to"]).size().reset_index(name="count")
         fig = px.line(upc, x="day", y="count", color="assigned_to", markers=True,
                       color_discrete_map=PERSON_COLORS)
