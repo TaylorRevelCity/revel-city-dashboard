@@ -280,7 +280,7 @@ all_people = sorted(set(
 
 ban1, fil1, fil2 = st.columns([3, 2, 2])
 ban1.markdown('<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>', unsafe_allow_html=True)
-selected_person = fil1.selectbox("Acquisition Manager", ["All"] + all_people)
+selected_people = fil1.multiselect("Acquisition Manager", all_people, default=all_people)
 min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
 date_range = None
 if pd.notna(min_date) and pd.notna(max_date):
@@ -294,14 +294,14 @@ if pd.notna(min_date) and pd.notna(max_date):
     )
 
 tasks = tasks_raw.copy()
-if selected_person != "All":
-    tasks = tasks[tasks["assigned_to"] == selected_person]
+if selected_people:
+    tasks = tasks[tasks["assigned_to"].isin(selected_people)]
 if date_range and len(date_range) == 2:
     tasks = tasks[(tasks["due_date"] >= pd.Timestamp(date_range[0])) & (tasks["due_date"] <= pd.Timestamp(date_range[1]))]
 
 contacts = contacts_raw.copy()
-if selected_person != "All":
-    contacts = contacts[contacts["relationship_manager"] == selected_person]
+if selected_people:
+    contacts = contacts[contacts["relationship_manager"].isin(selected_people)]
 
 c1, c2, c3 = st.columns(3)
 
