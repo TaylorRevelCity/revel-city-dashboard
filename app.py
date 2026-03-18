@@ -33,15 +33,15 @@ st.markdown("""
         padding: 10px 10px 4px 10px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    /* Slider styling */
-    [data-testid="stSlider"] [role="slider"] {
+    /* Slider track: grey base, colored active range */
+    [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:first-child {
+        background-color: #ddd !important;
+    }
+    [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:nth-child(2) {
         background-color: #a0926c !important;
     }
-    [data-testid="stSlider"] [data-testid="stThumbValue"] {
-        color: #a0926c !important;
-    }
-    [data-testid="stSlider"] > div > div > div {
-        background: linear-gradient(to right, #a0926c, #c2703e) !important;
+    [data-testid="stSlider"] [data-testid="stSliderTrack"] > div:nth-child(3) {
+        background-color: #ddd !important;
     }
 </style>
 """, unsafe_allow_html=True)
