@@ -298,10 +298,22 @@ ban1, fil1, fil2 = st.columns([3, 2, 2])
 ban1.markdown('<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>', unsafe_allow_html=True)
 with fil1:
     with st.expander("Acquisition Manager", expanded=False):
+        # Track previous All state to detect toggle
+        prev_all = st.session_state.get("am_all_prev", True)
         all_selected = st.checkbox("All", value=True, key="am_all")
+        # If All was just unchecked, clear all individual checkboxes
+        if prev_all and not all_selected:
+            for person in all_people:
+                st.session_state[f"am_{person}"] = False
+        # If All was just checked, set all individual checkboxes
+        elif not prev_all and all_selected:
+            for person in all_people:
+                st.session_state[f"am_{person}"] = True
+        st.session_state["am_all_prev"] = all_selected
         selected_people = []
         for person in all_people:
-            checked = st.checkbox(person, value=all_selected, key=f"am_{person}", disabled=all_selected)
+            default = all_selected if f"am_{person}" not in st.session_state else st.session_state[f"am_{person}"]
+            checked = st.checkbox(person, value=default, key=f"am_{person}", disabled=all_selected)
             if all_selected or checked:
                 selected_people.append(person)
 min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
