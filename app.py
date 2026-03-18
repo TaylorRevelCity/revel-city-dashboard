@@ -4,10 +4,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
-from datetime import date
+from datetime import date, timedelta
 from utils.bq_client import run_query, TABLES
 
-st.set_page_config(page_title="Revel City - Connector Dashboard", layout="wide")
+st.set_page_config(page_title="Revel City Dashboard", layout="wide")
 
 st.markdown("""
 <style>
@@ -322,19 +322,27 @@ def load_tasks():
 def load_contacts():
     return run_query(f"SELECT * FROM `{TABLES['connector_contacts']}`")
 
+@st.cache_data(ttl=300)
+def load_connector_leads():
+    return run_query(f"SELECT * FROM `{TABLES['connector_leads']}`")
+
 tasks_raw = load_tasks()
 contacts_raw = load_contacts()
+leads_raw = load_connector_leads()
 
-# ═══════════════════════════════════════════════════
-# HEADER + FILTERS
-# ═══════════════════════════════════════════════════
-all_people = sorted(set(
-    tasks_raw["assigned_to"].dropna().unique().tolist() +
-    contacts_raw["relationship_manager"].dropna().unique().tolist()
-))
+tab1, tab2 = st.tabs(["Connector Dashboard", "AM KPIs"])
 
-ban1, fil1, fil2 = st.columns([3, 2, 2])
-ban1.markdown('''<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>
+with tab1:
+    # ═══════════════════════════════════════════════════
+    # HEADER + FILTERS
+    # ═══════════════════════════════════════════════════
+    all_people = sorted(set(
+        tasks_raw["assigned_to"].dropna().unique().tolist() +
+        contacts_raw["relationship_manager"].dropna().unique().tolist()
+    ))
+
+    ban1, fil1, fil2 = st.columns([3, 2, 2])
+    ban1.markdown('''<div class="section-banner"><h2>Connector Tasks and Contacts</h2></div>
 <style>
     div[data-testid="stColumn"]:has(.section-banner) > div {
         background: #e8eaef !important;
@@ -347,194 +355,193 @@ ban1.markdown('''<div class="section-banner"><h2>Connector Tasks and Contacts</h
     }
 </style>
 ''', unsafe_allow_html=True)
-with fil1:
-    with st.expander("Acquisition Manager", expanded=False):
-        # Track previous All state to detect toggle
-        prev_all = st.session_state.get("am_all_prev", True)
-        all_selected = st.checkbox("All", value=True, key="am_all")
-        # If All was just unchecked, clear all individual checkboxes
-        if prev_all and not all_selected:
+    with fil1:
+        with st.expander("Acquisition Manager", expanded=False):
+            # Track previous All state to detect toggle
+            prev_all = st.session_state.get("am_all_prev", True)
+            all_selected = st.checkbox("All", value=True, key="am_all")
+            # If All was just unchecked, clear all individual checkboxes
+            if prev_all and not all_selected:
+                for person in all_people:
+                    st.session_state[f"am_{person}"] = False
+            # If All was just checked, set all individual checkboxes
+            elif not prev_all and all_selected:
+                for person in all_people:
+                    st.session_state[f"am_{person}"] = True
+            st.session_state["am_all_prev"] = all_selected
+            selected_people = []
             for person in all_people:
-                st.session_state[f"am_{person}"] = False
-        # If All was just checked, set all individual checkboxes
-        elif not prev_all and all_selected:
-            for person in all_people:
-                st.session_state[f"am_{person}"] = True
-        st.session_state["am_all_prev"] = all_selected
-        selected_people = []
-        for person in all_people:
-            default = all_selected if f"am_{person}" not in st.session_state else st.session_state[f"am_{person}"]
-            checked = st.checkbox(person, value=default, key=f"am_{person}", disabled=all_selected)
-            if all_selected or checked:
-                selected_people.append(person)
-min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
-date_range = None
-if pd.notna(min_date) and pd.notna(max_date):
-    min_d = pd.Timestamp(min_date).date()
-    max_d = pd.Timestamp(max_date).date()
-    date_range = fil2.slider(
-        "Date Range",
-        min_value=min_d, max_value=max_d,
-        value=(min_d, max_d),
-        format="MM/DD/YYYY",
-    )
-
-tasks = tasks_raw.copy()
-if selected_people:
-    tasks = tasks[tasks["assigned_to"].isin(selected_people)]
-if date_range and len(date_range) == 2:
-    tasks = tasks[(tasks["due_date"] >= pd.Timestamp(date_range[0])) & (tasks["due_date"] <= pd.Timestamp(date_range[1]))]
-
-contacts = contacts_raw.copy()
-if selected_people:
-    contacts = contacts[contacts["relationship_manager"].isin(selected_people)]
-
-c1, c2, c3 = st.columns(3)
-
-# 1) Outstanding Follow-Ups
-with c1:
-    st.markdown('<p class="chart-title">Outstanding Follow-Ups</p>', unsafe_allow_html=True)
-    outstanding = tasks[tasks["follow_up_status"].isin(["Incomplete", "Late"])].copy()
-    if not outstanding.empty:
-        outstanding["display_status"] = outstanding.apply(
-            lambda r: "Open to Steal" if r["follow_up_status"] == "Late" and r.get("check_in") == "Open to Steal Relationship" else r["follow_up_status"],
-            axis=1,
+                default = all_selected if f"am_{person}" not in st.session_state else st.session_state[f"am_{person}"]
+                checked = st.checkbox(person, value=default, key=f"am_{person}", disabled=all_selected)
+                if all_selected or checked:
+                    selected_people.append(person)
+    min_date, max_date = tasks_raw["due_date"].min(), tasks_raw["due_date"].max()
+    date_range = None
+    if pd.notna(min_date) and pd.notna(max_date):
+        min_d = pd.Timestamp(min_date).date()
+        max_d = pd.Timestamp(max_date).date()
+        date_range = fil2.slider(
+            "Date Range",
+            min_value=min_d, max_value=max_d,
+            value=(min_d, max_d),
+            format="MM/DD/YYYY",
         )
-        ost = outstanding.groupby(["assigned_to", "display_status"]).size().reset_index(name="count")
-        order = ost.groupby("assigned_to")["count"].sum().sort_values(ascending=True).index.tolist()
-        fig = go.Figure()
-        for status, color in [("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")]:
-            s = ost[ost["display_status"] == status]
-            fig.add_trace(go.Bar(
-                y=s["assigned_to"], x=s["count"], name=status, orientation="h",
-                marker=beveled_marker(color),
-                text=s["count"], textposition="inside",
+
+    tasks = tasks_raw.copy()
+    if selected_people:
+        tasks = tasks[tasks["assigned_to"].isin(selected_people)]
+    if date_range and len(date_range) == 2:
+        tasks = tasks[(tasks["due_date"] >= pd.Timestamp(date_range[0])) & (tasks["due_date"] <= pd.Timestamp(date_range[1]))]
+
+    contacts = contacts_raw.copy()
+    if selected_people:
+        contacts = contacts[contacts["relationship_manager"].isin(selected_people)]
+
+    c1, c2, c3 = st.columns(3)
+
+    # 1) Outstanding Follow-Ups
+    with c1:
+        st.markdown('<p class="chart-title">Outstanding Follow-Ups</p>', unsafe_allow_html=True)
+        outstanding = tasks[tasks["follow_up_status"].isin(["Incomplete", "Late"])].copy()
+        if not outstanding.empty:
+            outstanding["display_status"] = outstanding.apply(
+                lambda r: "Open to Steal" if r["follow_up_status"] == "Late" and r.get("check_in") == "Open to Steal Relationship" else r["follow_up_status"],
+                axis=1,
+            )
+            ost = outstanding.groupby(["assigned_to", "display_status"]).size().reset_index(name="count")
+            order = ost.groupby("assigned_to")["count"].sum().sort_values(ascending=True).index.tolist()
+            fig = go.Figure()
+            for status, color in [("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")]:
+                s = ost[ost["display_status"] == status]
+                fig.add_trace(go.Bar(
+                    y=s["assigned_to"], x=s["count"], name=status, orientation="h",
+                    marker=beveled_marker(color),
+                    text=s["count"], textposition="inside",
+                    textfont=dict(size=14, color="white"), insidetextanchor="middle", width=0.5,
+                    hovertemplate="<b>%{y}</b><br>" + status + ": <b>%{x}</b><extra></extra>",
+                ))
+            fig.update_layout(**CHART_BG, barmode="stack", height=300,
+                yaxis=dict(categoryorder="array", categoryarray=order, tickfont=dict(size=12), automargin=True),
+                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999")),
+                showlegend=False,
+                margin=dict(l=120, r=15, t=5, b=30))
+            render_chart(fig, height=320, legend=[
+                ("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")
+            ])
+
+    # 2) Completed Follow-Ups
+    with c2:
+        st.markdown('<p class="chart-title">Completed Follow-Ups</p>', unsafe_allow_html=True)
+        completed = tasks[tasks["follow_up_status"] == "Complete"]
+        if not completed.empty:
+            comp = completed.groupby("assigned_to").size().reset_index(name="count").sort_values("count", ascending=True)
+            fig = go.Figure(go.Bar(
+                y=comp["assigned_to"], x=comp["count"], orientation="h",
+                marker=beveled_marker("#7a9a6d"),
+                text=comp["count"], textposition="inside",
                 textfont=dict(size=14, color="white"), insidetextanchor="middle", width=0.5,
-                hovertemplate="<b>%{y}</b><br>" + status + ": <b>%{x}</b><extra></extra>",
+                hovertemplate="<b>%{y}</b><br>Completed: <b>%{x}</b><extra></extra>",
             ))
-        fig.update_layout(**CHART_BG, barmode="stack", height=300,
-            yaxis=dict(categoryorder="array", categoryarray=order, tickfont=dict(size=12), automargin=True),
-            xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999")),
-            showlegend=False,
-            margin=dict(l=120, r=15, t=5, b=30))
-        render_chart(fig, height=320, legend=[
-            ("Incomplete", "#d4a857"), ("Late", "#b54734"), ("Open to Steal", "#c2703e")
-        ])
+            fig.update_layout(**CHART_BG, height=300, showlegend=False,
+                yaxis=dict(tickfont=dict(size=12), automargin=True),
+                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999"), automargin=True),
+                margin=dict(l=5, r=15, t=10, b=30))
+            render_chart(fig, height=320)
 
-# 2) Completed Follow-Ups
-with c2:
-    st.markdown('<p class="chart-title">Completed Follow-Ups</p>', unsafe_allow_html=True)
-    completed = tasks[tasks["follow_up_status"] == "Complete"]
-    if not completed.empty:
-        comp = completed.groupby("assigned_to").size().reset_index(name="count").sort_values("count", ascending=True)
-        fig = go.Figure(go.Bar(
-            y=comp["assigned_to"], x=comp["count"], orientation="h",
-            marker=beveled_marker("#7a9a6d"),
-            text=comp["count"], textposition="inside",
-            textfont=dict(size=14, color="white"), insidetextanchor="middle", width=0.5,
-            hovertemplate="<b>%{y}</b><br>Completed: <b>%{x}</b><extra></extra>",
-        ))
-        fig.update_layout(**CHART_BG, height=300, showlegend=False,
-            yaxis=dict(tickfont=dict(size=12), automargin=True),
-            xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=11, color="#999"), automargin=True),
-            margin=dict(l=5, r=15, t=10, b=30))
-        render_chart(fig, height=320)
+    # 3) Upcoming Follow-Ups
+    with c3:
+        st.markdown('<p class="chart-title">Upcoming Follow-Ups</p>', unsafe_allow_html=True)
+        task_time = tasks[(tasks["due_date"] >= pd.Timestamp(date.today())) & (tasks["follow_up_status"].isin(["Incomplete", "Late"]))].copy()
+        task_time["assigned_to"] = task_time["assigned_to"].fillna("Unassigned")
+        if not task_time.empty:
+            task_time["day"] = pd.to_datetime(task_time["due_date"]).dt.date
+            upc = task_time.groupby(["day", "assigned_to"]).size().reset_index(name="count")
+            fig = px.line(upc, x="day", y="count", color="assigned_to", markers=True,
+                          color_discrete_map=PERSON_COLORS)
+            fig.update_traces(
+                line=dict(width=2),
+                marker=dict(size=6, line=dict(color="rgba(0,0,0,0.2)", width=1.5)),
+                hovertemplate="<b>%{fullData.name}</b><br>%{x|%b %d, %Y}<br>Tasks: <b>%{y}</b><extra></extra>",
+            )
+            fig.update_layout(**CHART_BG, height=300,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=5),
+                xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
+                legend=dict(orientation="h", y=-0.3, x=0, title="", font=dict(size=10)),
+                margin=dict(l=10, r=15, t=10, b=5))
+            render_chart(fig, height=350)
 
-# 3) Upcoming Follow-Ups
-with c3:
-    st.markdown('<p class="chart-title">Upcoming Follow-Ups</p>', unsafe_allow_html=True)
-    task_time = tasks[(tasks["due_date"] >= pd.Timestamp(date.today())) & (tasks["follow_up_status"].isin(["Incomplete", "Late"]))].copy()
-    task_time["assigned_to"] = task_time["assigned_to"].fillna("Unassigned")
-    if not task_time.empty:
-        task_time["day"] = pd.to_datetime(task_time["due_date"]).dt.date
-        upc = task_time.groupby(["day", "assigned_to"]).size().reset_index(name="count")
-        fig = px.line(upc, x="day", y="count", color="assigned_to", markers=True,
-                      color_discrete_map=PERSON_COLORS)
-        fig.update_traces(
-            line=dict(width=2),
-            marker=dict(size=6, line=dict(color="rgba(0,0,0,0.2)", width=1.5)),
-            hovertemplate="<b>%{fullData.name}</b><br>%{x|%b %d, %Y}<br>Tasks: <b>%{y}</b><extra></extra>",
-        )
-        fig.update_layout(**CHART_BG, height=300,
-            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=5),
-            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
-            legend=dict(orientation="h", y=-0.3, x=0, title="", font=dict(size=10)),
-            margin=dict(l=10, r=15, t=10, b=5))
-        render_chart(fig, height=350)
+    # ═══════════════════════════════════════════════════
+    # SECTION 2: Connector Contacts
+    # ═══════════════════════════════════════════════════
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════
-# SECTION 2: Connector Contacts
-# ═══════════════════════════════════════════════════
-st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+    c4, c5, c6 = st.columns(3)
 
+    # 4) Outstanding Tasks vs Connector Contacts
+    with c4:
+        st.markdown('<p class="chart-title">Outstanding Tasks vs Connector Contacts</p>', unsafe_allow_html=True)
+        if not contacts.empty:
+            by_mgr = contacts.groupby("relationship_manager").agg(
+                total=("podio_item_id", "count"),
+                level_assigned=("level", lambda x: x.notna().sum()),
+            ).reset_index().sort_values("total", ascending=False)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=by_mgr["relationship_manager"], y=by_mgr["level_assigned"],
+                name="Level Assigned",
+                marker=beveled_marker("#a0926c"),
+                text=by_mgr["level_assigned"], textposition="outside",
+                textfont=dict(size=12), width=0.3,
+                hovertemplate="<b>%{x}</b><br>Level Assigned: <b>%{y}</b><extra></extra>",
+            ))
+            fig.add_trace(go.Bar(
+                x=by_mgr["relationship_manager"], y=by_mgr["total"],
+                name="Total Connectors",
+                marker=beveled_marker("#c2703e"),
+                text=by_mgr["total"], textposition="outside",
+                textfont=dict(size=12), width=0.3,
+                hovertemplate="<b>%{x}</b><br>Total Connectors: <b>%{y}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, barmode="group", height=340, bargroupgap=0.08,
+                yaxis=dict(gridcolor="#f0f0f0", title="", range=[0, by_mgr["total"].max() * 1.2], zeroline=False, automargin=True),
+                xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=60))
+            render_chart(fig, height=370, legend=[
+                ("Level Assigned", "#a0926c"), ("Total Connectors", "#c2703e")
+            ])
 
-c4, c5, c6 = st.columns(3)
+    # 5) Connector Type
+    with c5:
+        st.markdown('<p class="chart-title">Connector Type</p>', unsafe_allow_html=True)
+        if not contacts.empty:
+            tc = contacts["connector_type"].fillna("Unknown").value_counts().reset_index()
+            tc.columns = ["connector_type", "count"]
+            cmap = {"Wholesaler": "#a0926c", "Agent": "#c2703e", "Investor": "#7a9a6d",
+                    "Other": "#d4a857", "Attorney": "#8b6f5e", "Unknown": "#6b8f9e"}
+            pie_colors = [cmap.get(t, "#999") for t in tc["connector_type"]]
+            fig = go.Figure(go.Pie(
+                labels=tc["connector_type"], values=tc["count"], hole=0.5,
+                marker=dict(
+                    colors=pie_colors,
+                    line=dict(color="rgba(255,255,255,0.4)", width=2.5),
+                ),
+                textinfo="value", textposition="inside",
+                textfont=dict(size=16, color="white"),
+                hovertemplate="<b>%{label}</b><br>Count: <b>%{value}</b><br>%{percent}<extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340,
+                legend=dict(orientation="h", y=-0.08, xanchor="center", x=0.5, font=dict(size=11), title=""),
+                margin=dict(l=10, r=10, t=10, b=10))
 
-# 4) Outstanding Tasks vs Connector Contacts
-with c4:
-    st.markdown('<p class="chart-title">Outstanding Tasks vs Connector Contacts</p>', unsafe_allow_html=True)
-    if not contacts.empty:
-        by_mgr = contacts.groupby("relationship_manager").agg(
-            total=("podio_item_id", "count"),
-            level_assigned=("level", lambda x: x.notna().sum()),
-        ).reset_index().sort_values("total", ascending=False)
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=by_mgr["relationship_manager"], y=by_mgr["level_assigned"],
-            name="Level Assigned",
-            marker=beveled_marker("#a0926c"),
-            text=by_mgr["level_assigned"], textposition="outside",
-            textfont=dict(size=12), width=0.3,
-            hovertemplate="<b>%{x}</b><br>Level Assigned: <b>%{y}</b><extra></extra>",
-        ))
-        fig.add_trace(go.Bar(
-            x=by_mgr["relationship_manager"], y=by_mgr["total"],
-            name="Total Connectors",
-            marker=beveled_marker("#c2703e"),
-            text=by_mgr["total"], textposition="outside",
-            textfont=dict(size=12), width=0.3,
-            hovertemplate="<b>%{x}</b><br>Total Connectors: <b>%{y}</b><extra></extra>",
-        ))
-        fig.update_layout(**CHART_BG, barmode="group", height=340, bargroupgap=0.08,
-            yaxis=dict(gridcolor="#f0f0f0", title="", range=[0, by_mgr["total"].max() * 1.2], zeroline=False, automargin=True),
-            xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
-            showlegend=False,
-            margin=dict(l=10, r=10, t=5, b=60))
-        render_chart(fig, height=370, legend=[
-            ("Level Assigned", "#a0926c"), ("Total Connectors", "#c2703e")
-        ])
-
-# 5) Connector Type
-with c5:
-    st.markdown('<p class="chart-title">Connector Type</p>', unsafe_allow_html=True)
-    if not contacts.empty:
-        tc = contacts["connector_type"].fillna("Unknown").value_counts().reset_index()
-        tc.columns = ["connector_type", "count"]
-        cmap = {"Wholesaler": "#a0926c", "Agent": "#c2703e", "Investor": "#7a9a6d",
-                "Other": "#d4a857", "Attorney": "#8b6f5e", "Unknown": "#6b8f9e"}
-        pie_colors = [cmap.get(t, "#999") for t in tc["connector_type"]]
-        fig = go.Figure(go.Pie(
-            labels=tc["connector_type"], values=tc["count"], hole=0.5,
-            marker=dict(
-                colors=pie_colors,
-                line=dict(color="rgba(255,255,255,0.4)", width=2.5),
-            ),
-            textinfo="value", textposition="inside",
-            textfont=dict(size=16, color="white"),
-            hovertemplate="<b>%{label}</b><br>Count: <b>%{value}</b><br>%{percent}<extra></extra>",
-        ))
-        fig.update_layout(**CHART_BG, height=340,
-            legend=dict(orientation="h", y=-0.08, xanchor="center", x=0.5, font=dict(size=11), title=""),
-            margin=dict(l=10, r=10, t=10, b=10))
-
-        import json as _json
-        pie_html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False,
-                               config={"displayModeBar": False, "responsive": True})
-        import re as _re
-        _m = _re.search(r'id="([^"]+)"', pie_html)
-        _div_id = _m.group(1) if _m else ""
-        _colors_json = _json.dumps(pie_colors)
-        pie_js = f'''<script>
+            import json as _json
+            pie_html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False,
+                                   config={"displayModeBar": False, "responsive": True})
+            import re as _re
+            _m = _re.search(r'id="([^"]+)"', pie_html)
+            _div_id = _m.group(1) if _m else ""
+            _colors_json = _json.dumps(pie_colors)
+            pie_js = f'''<script>
         (function() {{
             function init() {{
                 var plot = document.getElementById("{_div_id}");
@@ -570,35 +577,301 @@ with c5:
             init();
         }})();
         </script>'''
-        wrapper = f'<div style="background:white;width:100%;overflow:visible;">{pie_html}{pie_js}</div>'
-        components.html(wrapper, height=370)
+            wrapper = f'<div style="background:white;width:100%;overflow:visible;">{pie_html}{pie_js}</div>'
+            components.html(wrapper, height=370)
 
-# 6) New Connector Contacts
-with c6:
-    st.markdown('<p class="chart-title">New Connector Contacts</p>', unsafe_allow_html=True)
-    if not contacts.empty:
-        ct = contacts.copy()
-        ct["month"] = pd.to_datetime(ct["created_on"]).values.astype("datetime64[M]")
-        ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
-        six_months_ago = pd.Timestamp(date.today()) - pd.DateOffset(months=6)
-        ct = ct[ct["month"] >= six_months_ago]
-        new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
-        fig = go.Figure()
-        legend_items = []
-        for person in sorted(new_c["relationship_manager"].unique()):
-            color = PERSON_COLORS.get(person, "#999")
-            legend_items.append((person, color))
-            pdf = new_c[new_c["relationship_manager"] == person]
-            fig.add_trace(go.Bar(
-                x=pdf["month"], y=pdf["count"], name=person,
-                marker=beveled_marker(color),
-                hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Count: <b>%{y}</b><extra></extra>",
+    # 6) New Connector Contacts
+    with c6:
+        st.markdown('<p class="chart-title">New Connector Contacts</p>', unsafe_allow_html=True)
+        if not contacts.empty:
+            ct = contacts.copy()
+            ct["month"] = pd.to_datetime(ct["created_on"]).values.astype("datetime64[M]")
+            ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
+            six_months_ago = pd.Timestamp(date.today()) - pd.DateOffset(months=6)
+            ct = ct[ct["month"] >= six_months_ago]
+            new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
+            fig = go.Figure()
+            legend_items = []
+            for person in sorted(new_c["relationship_manager"].unique()):
+                color = PERSON_COLORS.get(person, "#999")
+                legend_items.append((person, color))
+                pdf = new_c[new_c["relationship_manager"] == person]
+                fig.add_trace(go.Bar(
+                    x=pdf["month"], y=pdf["count"], name=person,
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Count: <b>%{y}</b><extra></extra>",
+                ))
+            fig.update_layout(**CHART_BG, barmode="stack", height=300, bargap=0.3,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1",
+                           tickangle=-30, tickfont=dict(size=10)),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=legend_items, legend_position="bottom")
+
+# ═══════════════════════════════════════════════════
+# TAB 2: AM KPIs
+# ═══════════════════════════════════════════════════
+with tab2:
+    today = date.today()
+    current_year = today.year
+    # Quarter boundaries (current quarter for lead conversion)
+    q_month = ((today.month - 1) // 3) * 3 + 1
+    qtr_start = date(current_year, q_month, 1)
+    qtr_end = today
+
+    leads = leads_raw.copy()
+
+    # ── Header row: banner + RM filter ──
+    am_ban, am_fil = st.columns([4, 3])
+    am_ban.markdown('''<div class="section-banner"><h2>AM KPIs</h2></div>
+<style>
+    div[data-testid="stColumn"]:has(.section-banner) > div {
+        background: #e8eaef !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stColumn"]:has(.section-banner) .section-banner {
+        background: transparent; padding: 0;
+    }
+</style>
+''', unsafe_allow_html=True)
+
+    all_rms = sorted(leads["relationship_manager"].dropna().unique().tolist())
+    with am_fil:
+        with st.expander("Relationship Manager", expanded=False):
+            prev_all_rm = st.session_state.get("rm_all_prev", True)
+            all_rm_selected = st.checkbox("All", value=True, key="rm_all")
+            if prev_all_rm and not all_rm_selected:
+                for rm in all_rms:
+                    st.session_state[f"rm_{rm}"] = False
+            elif not prev_all_rm and all_rm_selected:
+                for rm in all_rms:
+                    st.session_state[f"rm_{rm}"] = True
+            st.session_state["rm_all_prev"] = all_rm_selected
+            selected_rms = []
+            for rm in all_rms:
+                default_rm = all_rm_selected if f"rm_{rm}" not in st.session_state else st.session_state[f"rm_{rm}"]
+                checked_rm = st.checkbox(rm, value=default_rm, key=f"rm_{rm}", disabled=all_rm_selected)
+                if all_rm_selected or checked_rm:
+                    selected_rms.append(rm)
+
+    if selected_rms:
+        leads = leads[leads["relationship_manager"].isin(selected_rms)]
+
+    # ── Helper: format currency as K ──
+    def fmt_k(val):
+        if pd.isna(val) or val == 0:
+            return "$0"
+        return f"${val/1000:,.1f}K"
+
+    # ── KPI calculations ──
+    future_profit = leads.loc[leads["purchase_price"].isna(), "projected_profit"].sum()
+    ytd_deals = leads[pd.to_datetime(leads["agreement_date"]).dt.year == current_year]
+    ytd_profit_per_deal = ytd_deals["projected_profit"].mean() if not ytd_deals.empty else 0
+
+    valid_offer_ask = leads[(leads["offer_amount"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0)]
+    offer_to_ask = (valid_offer_ask["offer_amount"] / valid_offer_ask["asking_price"]).mean() * 100 if not valid_offer_ask.empty else 0
+
+    valid_purch_ask = leads[(leads["purchase_price"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0)]
+    purchase_to_ask = (valid_purch_ask["purchase_price"] / valid_purch_ask["asking_price"]).mean() * 100 if not valid_purch_ask.empty else 0
+
+    qtr_leads = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
+    qtr_purchases = qtr_leads[qtr_leads["purchase_price"].notna()]
+    lead_conversion = (len(qtr_purchases) / len(qtr_leads) * 100) if len(qtr_leads) > 0 else 0
+
+    # ── KPI cards row ──
+    kc1, kc2, kc3, kc4, kc5 = st.columns(5)
+    for col, label, value in [
+        (kc1, "Future Projected Profit", fmt_k(future_profit)),
+        (kc2, "Current Year Profit/Deal", fmt_k(ytd_profit_per_deal if pd.notna(ytd_profit_per_deal) else 0)),
+        (kc3, "Offer to Ask", f"{offer_to_ask:.1f}%"),
+        (kc4, "Purchase to Ask", f"{purchase_to_ask:.1f}%"),
+        (kc5, "Lead Conversion (Qtr)", f"{lead_conversion:.1f}%"),
+    ]:
+        col.markdown(
+            f'<div style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
+            f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
+            f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 1 ──
+    r1c1, r1c2 = st.columns(2)
+
+    # 1) Properties Walked By Week
+    with r1c1:
+        st.markdown('<p class="chart-title">Properties Walked By Week</p>', unsafe_allow_html=True)
+        walked = leads[leads["date_walked"].notna()].copy()
+        if not walked.empty:
+            walked["week"] = pd.to_datetime(walked["date_walked"]).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            walked["property_walker"] = walked["property_walker"].fillna("Unknown")
+            wk_data = walked.groupby(["week", "property_walker"]).size().reset_index(name="count")
+            fig = go.Figure()
+            legend_items = []
+            for person in sorted(wk_data["property_walker"].unique()):
+                color = PERSON_COLORS.get(person, "#999")
+                legend_items.append((person, color))
+                pdf = wk_data[wk_data["property_walker"] == person]
+                fig.add_trace(go.Bar(
+                    x=pdf["week"], y=pdf["count"], name=person,
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Count: <b>%{y}</b><extra></extra>",
+                ))
+            fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2,
+                          annotation_text="Weekly Goal", annotation_position="top left",
+                          annotation_font=dict(color="#7a9a6d", size=11))
+            fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10)),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=legend_items)
+
+    # 2) Future Profit by AM
+    with r1c2:
+        st.markdown('<p class="chart-title">Future Profit by AM</p>', unsafe_allow_html=True)
+        future = leads[leads["purchase_price"].isna()].copy()
+        if not future.empty:
+            future["relationship_manager"] = future["relationship_manager"].fillna("Unknown")
+            fp = future.groupby("relationship_manager")["projected_profit"].sum().reset_index()
+            fp = fp.sort_values("projected_profit", ascending=False)
+            colors = [PERSON_COLORS.get(p, "#999") for p in fp["relationship_manager"]]
+            fig = go.Figure(go.Bar(
+                x=fp["relationship_manager"], y=fp["projected_profit"], name="Future Profit",
+                marker=beveled_marker(colors),
+                text=[fmt_k(v) for v in fp["projected_profit"]], textposition="outside",
+                textfont=dict(size=11),
+                hovertemplate="<b>%{x}</b><br>Projected Profit: <b>%{text}</b><extra></extra>",
             ))
-        fig.update_layout(**CHART_BG, barmode="stack", height=300, bargap=0.3,
+            fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2,
+                          annotation_text="Profit Goal (100,000)", annotation_position="top left",
+                          annotation_font=dict(color="#7a9a6d", size=11))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
+                margin=dict(l=10, r=10, t=5, b=60))
+            render_chart(fig, height=380)
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 2 ──
+    r2c1, r2c2 = st.columns(2)
+
+    # 3) Year to Date Properties Walked
+    with r2c1:
+        st.markdown('<p class="chart-title">Year to Date Properties Walked</p>', unsafe_allow_html=True)
+        ytd_walked = leads[(leads["date_walked"].notna()) & (pd.to_datetime(leads["date_walked"]).dt.year == current_year)].copy()
+        if not ytd_walked.empty:
+            ytd_walked["property_walker"] = ytd_walked["property_walker"].fillna("Unknown")
+            ytd_wk = ytd_walked.groupby("property_walker").size().reset_index(name="count").sort_values("count", ascending=False)
+            colors = [PERSON_COLORS.get(p, "#999") for p in ytd_wk["property_walker"]]
+            fig = go.Figure(go.Bar(
+                x=ytd_wk["property_walker"], y=ytd_wk["count"],
+                marker=beveled_marker(colors),
+                text=ytd_wk["count"], textposition="outside",
+                textfont=dict(size=12),
+                hovertemplate="<b>%{x}</b><br>Properties Walked: <b>%{y}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
+                margin=dict(l=10, r=10, t=5, b=60))
+            render_chart(fig, height=380)
+
+    # 4) Avg Asking vs Offer vs Purchase (Past Qtr)
+    with r2c2:
+        st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Past Qtr)</p>', unsafe_allow_html=True)
+        qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)].copy()
+        avg_asking = qtr_data["asking_price"].mean() if not qtr_data.empty and qtr_data["asking_price"].notna().any() else 0
+        avg_offer = qtr_data["offer_amount"].mean() if not qtr_data.empty and qtr_data["offer_amount"].notna().any() else 0
+        avg_purchase = qtr_data["purchase_price"].mean() if not qtr_data.empty and qtr_data["purchase_price"].notna().any() else 0
+        bar_labels = ["Avg Asking", "Avg Offer", "Avg Purchase"]
+        bar_values = [avg_asking if pd.notna(avg_asking) else 0, avg_offer if pd.notna(avg_offer) else 0, avg_purchase if pd.notna(avg_purchase) else 0]
+        bar_colors = ["#a0926c", "#c2703e", "#7a9a6d"]
+        fig = go.Figure()
+        for lbl, val, clr in zip(bar_labels, bar_values, bar_colors):
+            fig.add_trace(go.Bar(
+                x=[lbl], y=[val], name=lbl,
+                marker=beveled_marker(clr),
+                text=[fmt_k(val)], textposition="outside",
+                textfont=dict(size=11),
+                hovertemplate="<b>" + lbl + "</b><br>%{y:$,.0f}<extra></extra>",
+                width=0.4,
+            ))
+        fig.update_layout(**CHART_BG, height=340, showlegend=False,
             yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
-            xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1",
-                       tickangle=-30, tickfont=dict(size=10)),
-            showlegend=False,
-            margin=dict(l=10, r=10, t=5, b=50))
-        render_chart(fig, height=380, legend=legend_items, legend_position="bottom")
+            xaxis=dict(title="", tickfont=dict(size=11)),
+            margin=dict(l=10, r=10, t=5, b=30))
+        render_chart(fig, height=380, legend=[
+            ("Avg Asking", "#a0926c"), ("Avg Offer", "#c2703e"), ("Avg Purchase", "#7a9a6d")
+        ])
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 3 ──
+    r3c1, r3c2 = st.columns(2)
+
+    # 5) Offers By Week
+    with r3c1:
+        st.markdown('<p class="chart-title">Offers By Week</p>', unsafe_allow_html=True)
+        offers = leads[leads["offer_amount"].notna()].copy()
+        if not offers.empty:
+            offers["week"] = pd.to_datetime(offers["agreement_date"].fillna(offers["created_on"])).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            offers["relationship_manager"] = offers["relationship_manager"].fillna("Unknown")
+            off_data = offers.groupby(["week", "relationship_manager"]).size().reset_index(name="count")
+            fig = go.Figure()
+            legend_items = []
+            for person in sorted(off_data["relationship_manager"].unique()):
+                color = PERSON_COLORS.get(person, "#999")
+                legend_items.append((person, color))
+                pdf = off_data[off_data["relationship_manager"] == person]
+                fig.add_trace(go.Bar(
+                    x=pdf["week"], y=pdf["count"], name=person,
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Offers: <b>%{y}</b><extra></extra>",
+                ))
+            fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10)),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=legend_items)
+
+    # 6) Purchase vs Leads
+    with r3c2:
+        st.markdown('<p class="chart-title">Purchase vs Leads</p>', unsafe_allow_html=True)
+        pvl = leads.copy()
+        if not pvl.empty:
+            pvl["week"] = pd.to_datetime(pvl["created_on"]).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            total_leads = pvl.groupby("week").size().reset_index(name="leads")
+            purchases = pvl[pvl["purchase_price"].notna()].groupby("week").size().reset_index(name="purchases")
+            merged = total_leads.merge(purchases, on="week", how="left").fillna(0)
+            merged["purchases"] = merged["purchases"].astype(int)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=merged["week"], y=merged["leads"], name="Total Leads",
+                marker=beveled_marker("#a0926c"),
+                hovertemplate="Week of %{x|%b %d, %Y}<br>Leads: <b>%{y}</b><extra></extra>",
+            ))
+            fig.add_trace(go.Bar(
+                x=merged["week"], y=merged["purchases"], name="Purchases",
+                marker=beveled_marker("#7a9a6d"),
+                hovertemplate="Week of %{x|%b %d, %Y}<br>Purchases: <b>%{y}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10)),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=[
+                ("Total Leads", "#a0926c"), ("Purchases", "#7a9a6d")
+            ])
 

@@ -9,6 +9,7 @@ TABLES = {
     "am_rehab_costs": f"{PROJECT_ID}.AcquisitionManagerRehabCalc.AMRehabCalcCosts",
     "tasks": f"{PROJECT_ID}.ContactsPodio.Tasks",
     "connector_contacts": f"{PROJECT_ID}.ContactsPodio.ConnectorContacts",
+    "connector_leads": f"{PROJECT_ID}.AcquisitionManagement.ConnectorLeads",
 }
 
 
