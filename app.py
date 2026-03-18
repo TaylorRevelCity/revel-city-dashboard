@@ -120,7 +120,18 @@ def render_chart(fig, height=300, legend=None):
                     }
                     Plotly.restyle(plot, {'marker.color': [colors]}, [i]);
                 } else if (trace.type === 'scatter' || trace.type === 'scattergl') {
-                    Plotly.restyle(plot, {'opacity': (i === pt.curveNumber) ? 1 : 0.15}, [i]);
+                    if (i === pt.curveNumber) {
+                        var sizes = [];
+                        var opacs = [];
+                        var pts = trace.x ? trace.x.length : 0;
+                        for (var j = 0; j < pts; j++) {
+                            sizes.push(j === pt.pointIndex ? 12 : 6);
+                            opacs.push(j === pt.pointIndex ? 1 : 0.3);
+                        }
+                        Plotly.restyle(plot, {'marker.size': [sizes], 'marker.opacity': [opacs], 'opacity': 1}, [i]);
+                    } else {
+                        Plotly.restyle(plot, {'opacity': 0.15}, [i]);
+                    }
                 } else if (trace.type === 'pie') {
                     var len = trace.labels ? trace.labels.length : 0;
                     var pulls = [];
@@ -148,6 +159,11 @@ def render_chart(fig, height=300, legend=None):
                     var ones = [];
                     for (var j = 0; j < len; j++) { zeros.push(0); ones.push(1); }
                     Plotly.restyle(plot, {'pull': [zeros], 'marker.opacity': [ones]}, [i]);
+                } else if (trace.type === 'scatter' || trace.type === 'scattergl') {
+                    var pts2 = trace.x ? trace.x.length : 0;
+                    var resetSizes = []; var resetOpacs = [];
+                    for (var j = 0; j < pts2; j++) { resetSizes.push(6); resetOpacs.push(1); }
+                    Plotly.restyle(plot, {'marker.size': [resetSizes], 'marker.opacity': [resetOpacs], 'opacity': 1}, [i]);
                 } else {
                     Plotly.restyle(plot, {'opacity': 1}, [i]);
                 }
@@ -299,7 +315,11 @@ with c3:
         upc = task_time.groupby(["day", "assigned_to"]).size().reset_index(name="count")
         fig = px.line(upc, x="day", y="count", color="assigned_to", markers=True,
                       color_discrete_map=PERSON_COLORS)
-        fig.update_traces(line=dict(width=2), marker=dict(size=6, line=dict(color="rgba(0,0,0,0.2)", width=1.5)))
+        fig.update_traces(
+            line=dict(width=2),
+            marker=dict(size=6, line=dict(color="rgba(0,0,0,0.2)", width=1.5)),
+            hovertemplate="<b>%{fullData.name}</b><br>%{x|%b %d, %Y}<br>Tasks: <b>%{y}</b><extra></extra>",
+        )
         fig.update_layout(**CHART_BG, height=300,
             yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=5),
             xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
