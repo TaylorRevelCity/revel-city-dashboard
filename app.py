@@ -379,7 +379,7 @@ with c3:
 # ═══════════════════════════════════════════════════
 # SECTION 2: Connector Contacts
 # ═══════════════════════════════════════════════════
-st.markdown("---")
+st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
 
 c4, c5, c6 = st.columns(3)
