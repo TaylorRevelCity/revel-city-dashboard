@@ -133,14 +133,19 @@ def render_chart(fig, height=300, legend=None):
                         Plotly.restyle(plot, {'opacity': 0.15}, [i]);
                     }
                 } else if (trace.type === 'pie') {
+                    if (!origColors[i] && trace.marker && trace.marker.colors) {
+                        origColors[i] = trace.marker.colors.slice();
+                    }
+                    var pieColors = origColors[i] || [];
                     var len = trace.labels ? trace.labels.length : 0;
                     var pulls = [];
-                    var opacities = [];
+                    var newColors = [];
                     for (var j = 0; j < len; j++) {
                         pulls.push(j === pt.pointIndex ? 0.06 : 0);
-                        opacities.push(j === pt.pointIndex ? 1 : 0.3);
+                        var c = pieColors[j] || '#999';
+                        newColors.push(j === pt.pointIndex ? c : hexToRgba(c, 0.25));
                     }
-                    Plotly.restyle(plot, {'pull': [pulls], 'marker.opacity': [opacities]}, [i]);
+                    Plotly.restyle(plot, {'pull': [pulls], 'marker.colors': [newColors]}, [i]);
                 }
             }
         });
@@ -154,11 +159,11 @@ def render_chart(fig, height=300, legend=None):
                     var baseColor = origColors[i];
                     Plotly.restyle(plot, {'marker.color': [baseColor]}, [i]);
                 } else if (trace.type === 'pie') {
-                    var len = trace.labels ? trace.labels.length : 0;
+                    var len2 = trace.labels ? trace.labels.length : 0;
                     var zeros = [];
-                    var ones = [];
-                    for (var j = 0; j < len; j++) { zeros.push(0); ones.push(1); }
-                    Plotly.restyle(plot, {'pull': [zeros], 'marker.opacity': [ones]}, [i]);
+                    for (var j = 0; j < len2; j++) { zeros.push(0); }
+                    var restoreColors = origColors[i] || trace.marker.colors;
+                    Plotly.restyle(plot, {'pull': [zeros], 'marker.colors': [restoreColors]}, [i]);
                 } else if (trace.type === 'scatter' || trace.type === 'scattergl') {
                     var pts2 = trace.x ? trace.x.length : 0;
                     var resetSizes = []; var resetOpacs = [];
@@ -377,11 +382,16 @@ with c5:
         tc.columns = ["connector_type", "count"]
         cmap = {"Wholesaler": "#a0926c", "Agent": "#c2703e", "Investor": "#7a9a6d",
                 "Other": "#d4a857", "Attorney": "#8b6f5e", "Unknown": "#6b8f9e"}
-        fig = px.pie(tc, values="count", names="connector_type", hole=0.5,
-                     color="connector_type", color_discrete_map=cmap)
-        fig.update_traces(textinfo="value", textposition="inside",
+        fig = go.Figure(go.Pie(
+            labels=tc["connector_type"], values=tc["count"], hole=0.5,
+            marker=dict(
+                colors=[cmap.get(t, "#999") for t in tc["connector_type"]],
+                line=dict(color="rgba(255,255,255,0.4)", width=2.5),
+            ),
+            textinfo="value", textposition="inside",
             textfont=dict(size=16, color="white"),
-            marker=dict(line=dict(color="rgba(255,255,255,0.4)", width=2.5)))
+            hovertemplate="<b>%{label}</b><br>Count: <b>%{value}</b><br>%{percent}<extra></extra>",
+        ))
         fig.update_layout(**CHART_BG, height=340,
             legend=dict(orientation="h", y=-0.08, xanchor="center", x=0.5, font=dict(size=11), title=""),
             margin=dict(l=10, r=10, t=10, b=10))
