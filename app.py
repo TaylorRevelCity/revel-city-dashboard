@@ -59,7 +59,9 @@ def render_chart(fig, height=300, legend=None):
     hover_js = """
     <script>
     (function() {
+        function initHover() {
         var plot = document.getElementById('{div_id}');
+        if (!plot || !plot.data) { setTimeout(initHover, 100); return; }
         var origColors = {};
         var traceNames = {trace_names};
 
@@ -192,6 +194,8 @@ def render_chart(fig, height=300, legend=None):
                 }
             }
         });
+    }
+    initHover();
     })();
     </script>
     """
