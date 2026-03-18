@@ -33,6 +33,16 @@ st.markdown("""
         padding: 10px 10px 4px 10px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
+    /* Slider styling */
+    [data-testid="stSlider"] [role="slider"] {
+        background-color: #a0926c !important;
+    }
+    [data-testid="stSlider"] [data-testid="stThumbValue"] {
+        color: #a0926c !important;
+    }
+    [data-testid="stSlider"] > div > div > div {
+        background: linear-gradient(to right, #a0926c, #c2703e) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
