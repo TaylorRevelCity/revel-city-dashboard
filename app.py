@@ -477,13 +477,8 @@ with c6:
         ct = contacts.copy()
         ct["month"] = pd.to_datetime(ct["created_on"]).values.astype("datetime64[M]")
         ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
-        # Exclude the first month if it's a bulk import outlier
-        month_totals = ct.groupby("month").size()
-        if len(month_totals) > 1:
-            first_month = month_totals.index.min()
-            rest_avg = month_totals.drop(first_month).mean()
-            if month_totals[first_month] > rest_avg * 4:
-                ct = ct[ct["month"] > first_month]
+        six_months_ago = pd.Timestamp(date.today()) - pd.DateOffset(months=6)
+        ct = ct[ct["month"] >= six_months_ago]
         new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
         fig = go.Figure()
         legend_items = []
