@@ -470,16 +470,24 @@ with c6:
     st.markdown('<p class="chart-title">New Connector Contacts</p>', unsafe_allow_html=True)
     if not contacts.empty:
         ct = contacts.copy()
-        ct["month"] = ct["created_on"].values.astype("datetime64[M]")
+        ct["month"] = pd.to_datetime(ct["created_on"]).values.astype("datetime64[M]")
         ct["relationship_manager"] = ct["relationship_manager"].fillna("Unknown")
         new_c = ct.groupby(["month", "relationship_manager"]).size().reset_index(name="count")
-        fig = px.bar(new_c, x="month", y="count", color="relationship_manager", barmode="stack",
-                     color_discrete_map=PERSON_COLORS)
-        fig.update_traces(marker_line=dict(color="rgba(255,255,255,0.35)", width=2))
-        fig.update_layout(**CHART_BG, height=340, bargap=0.2,
-            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False),
-            xaxis=dict(title="", tickformat="%b\n%Y", gridcolor="#f0f0f0", zeroline=False),
-            legend=dict(orientation="h", y=-0.3, x=0, font=dict(size=10), title=""),
-            margin=dict(l=5, r=10, t=10, b=5))
-        render_chart(fig, height=370)
+        fig = go.Figure()
+        legend_items = []
+        for person in sorted(new_c["relationship_manager"].unique()):
+            color = PERSON_COLORS.get(person, "#999")
+            legend_items.append((person, color))
+            pdf = new_c[new_c["relationship_manager"] == person]
+            fig.add_trace(go.Bar(
+                x=pdf["month"], y=pdf["count"], name=person,
+                marker=beveled_marker(color),
+                hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Count: <b>%{y}</b><extra></extra>",
+            ))
+        fig.update_layout(**CHART_BG, barmode="stack", height=340, bargap=0.3,
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=10),
+            xaxis=dict(title="", tickformat="%b\n%Y", gridcolor="#f0f0f0", zeroline=False, dtick="M1"),
+            showlegend=False,
+            margin=dict(l=10, r=10, t=10, b=5))
+        render_chart(fig, height=370, legend=legend_items)
 
