@@ -1304,37 +1304,36 @@ with tab3:
                 unsafe_allow_html=True,
             )
 
-    # ── Cost Breakdown bar chart ──
+    # ── Cost Breakdown donut ──
     with chart_col:
-        st.markdown('<p class="chart-title">Cost Breakdown by Line Item</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Cost Breakdown</p>', unsafe_allow_html=True)
         if not rehab.empty:
-            CAT_COLORS = {"Renovation": "#c2703e", "Misc": "#a0926c", "Holding": "#7a9a6d"}
-            area_totals = (
-                rehab[rehab["amount_num"].gt(0)]
-                .groupby(["area", "cost_category"])["amount_num"].sum()
-                .reset_index()
-                .sort_values("amount_num", ascending=True)
-            )
+            area_totals = rehab[rehab["amount_num"].gt(0)].groupby("area")["amount_num"].sum().reset_index()
             total = area_totals["amount_num"].sum()
-            area_totals["pct"] = area_totals["amount_num"] / total * 100
-            colors = [CAT_COLORS.get(c, "#999") for c in area_totals["cost_category"]]
-            fig = go.Figure(go.Bar(
-                y=area_totals["area"],
-                x=area_totals["amount_num"],
-                orientation="h",
-                marker=beveled_marker(colors),
-                text=[f"${v:,.0f} ({p:.1f}%)" for v, p in zip(area_totals["amount_num"], area_totals["pct"])],
+            area_totals["pct"] = area_totals["amount_num"] / total
+            top = area_totals[area_totals["pct"] >= 0.02].sort_values("amount_num", ascending=False)
+            other_sum = area_totals[area_totals["pct"] < 0.02]["amount_num"].sum()
+            if other_sum > 0:
+                top = pd.concat([top, pd.DataFrame([{"area": "Other", "amount_num": other_sum, "pct": other_sum / total}])], ignore_index=True)
+            PIE_PALETTE = [
+                "#c2703e", "#a0926c", "#7a9a6d", "#6b8f9e", "#8e7bb5",
+                "#c2886e", "#b5a47a", "#8aab8a", "#7da8b5", "#a89bc5",
+                "#d4a574", "#9db89d",
+            ]
+            slice_colors = PIE_PALETTE[:len(top)]
+            fig = go.Figure(go.Pie(
+                labels=top["area"],
+                values=top["amount_num"],
+                hole=0.4,
+                textinfo="label+percent",
                 textposition="outside",
-                textfont=dict(size=9),
-                customdata=area_totals["cost_category"],
-                hovertemplate="<b>%{y}</b><br>%{customdata}<br>$%{x:,.0f}<extra></extra>",
+                textfont=dict(size=11),
+                marker=dict(colors=slice_colors, line=dict(color="white", width=2)),
+                hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
             ))
-            fig.update_layout(**CHART_BG, height=700, showlegend=False,
-                yaxis=dict(tickfont=dict(size=10), automargin=True),
-                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=9)),
-                margin=dict(l=10, r=140, t=5, b=20))
-            render_chart(fig, height=740,
-                legend=[("Renovation", "#c2703e"), ("Misc", "#a0926c"), ("Holding", "#7a9a6d")])
+            fig.update_layout(**CHART_BG, height=460, showlegend=False,
+                margin=dict(l=80, r=80, t=20, b=20))
+            render_chart(fig, height=500)
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
