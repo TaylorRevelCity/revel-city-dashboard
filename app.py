@@ -211,18 +211,18 @@ def render_chart(fig, height=300, legend=None, legend_position="top"):
                         Plotly.restyle(plot, {'opacity': 0.15}, [i]);
                     }
                 } else if (trace.type === 'pie' || trace.type === 'domain') {
-                    console.log('PIE HOVER', i, pt.pointIndex, trace.type, trace.marker);
                     if (!origColors[i] && trace.marker && trace.marker.colors) {
                         origColors[i] = trace.marker.colors.slice();
                     }
                     var pieColors = origColors[i] || [];
+                    var hoveredPt = pt.pointNumber !== undefined ? pt.pointNumber : pt.pointIndex;
                     var len = trace.labels ? trace.labels.length : 0;
                     var pulls = [];
                     var newColors = [];
                     for (var j = 0; j < len; j++) {
-                        pulls.push(j === pt.pointIndex ? 0.06 : 0);
+                        pulls.push(j === hoveredPt ? 0.06 : 0);
                         var c = pieColors[j] || '#999';
-                        newColors.push(j === pt.pointIndex ? c : hexToRgba(c, 0.25));
+                        newColors.push(j === hoveredPt ? c : hexToRgba(c, 0.25));
                     }
                     Plotly.restyle(plot, {'pull': [pulls], 'marker.colors': [newColors]}, [i]);
                 }
