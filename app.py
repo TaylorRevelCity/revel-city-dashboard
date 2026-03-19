@@ -783,7 +783,10 @@ with tab2:
     # 1) Properties Walked By Week
     with r1c1:
         st.markdown('<p class="chart-title">Properties Walked By Week</p>', unsafe_allow_html=True)
-        walked = am_tasks_raw[am_tasks_raw["follow_up_type"] == "Property Walk"].copy()
+        walked = am_tasks_raw[
+            (am_tasks_raw["follow_up_type"] == "Property Walk") &
+            (pd.to_datetime(am_tasks_raw["due_date"]).dt.date >= qtr_start)
+        ].copy()
         if not walked.empty:
             walked["week"] = pd.to_datetime(walked["due_date"]).dt.to_period("W-SUN").dt.start_time
             walked["assigned_to"] = walked["assigned_to"].fillna("Unknown")
