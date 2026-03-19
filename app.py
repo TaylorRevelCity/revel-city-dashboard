@@ -1316,9 +1316,10 @@ with tab3:
             if other_sum > 0:
                 top = pd.concat([top, pd.DataFrame([{"area": "Other", "amount_num": other_sum, "pct": other_sum / total}])], ignore_index=True)
             PIE_PALETTE = [
-                "#c2703e", "#a0926c", "#7a9a6d", "#6b8f9e", "#8e7bb5",
-                "#c2886e", "#b5a47a", "#8aab8a", "#7da8b5", "#a89bc5",
-                "#d4a574", "#9db89d",
+                "#c2703e", "#7a9a6d", "#a0926c", "#6b8f9e", "#b5856b",
+                "#5c7a8a", "#c4a882", "#8aab8a", "#4a6e7a", "#d4956b",
+                "#9db5a0", "#7a6b5a", "#b8c4a8", "#8a6b5c", "#a8b8c4",
+                "#c8a87a", "#6b8a7a", "#b5906b",
             ]
             slice_colors = PIE_PALETTE[:len(top)]
             fig = go.Figure(go.Pie(
