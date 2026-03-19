@@ -1281,32 +1281,41 @@ with tab3:
         has_both & props["all_in_cost"].gt(0))
     props["implied_margin"] = props["net_profit"]
 
-    # ── KPI cards ──
+    # ── KPI calculations ──
     jotforms_count = props["property_address"].nunique()
     avg_total = props["total_cost"].mean() if not props.empty else 0
     avg_reno = props["Renovation"].mean() if not props.empty else 0
     avg_arv = props.loc[props["list_price_arv"].gt(0), "list_price_arv"].mean() if not props.empty else 0
     avg_margin = props["implied_margin"].mean() if not props.empty else 0
-    rehab_kpi_tooltips = [
-        "Number of unique properties with a completed Jotform / AM Rehab Calc submitted.",
-        "Average total estimated cost (Holding + Misc + Renovation) across all walked properties.",
-        "Average renovation-only costs (excludes Holding and Misc) across all walked properties.",
-        "Average After Repair Value (ARV / list price) across all walked properties.",
-        "Average implied profit margin: ARV minus purchase price minus total rehab cost.",
+    avg_coc = props["coc_return"].mean() if not props.empty else None
+    valid_sf = props[props["above_grade_sqft"].gt(0)]
+    cost_per_sf = (valid_sf["total_cost"] / valid_sf["above_grade_sqft"]).mean() if not valid_sf.empty else None
+    valid_agg = props[has_both & props["all_in_cost"].gt(0)]
+    total_coc = valid_agg["net_profit"].sum() / valid_agg["all_in_cost"].sum() if not valid_agg.empty else None
+
+    def fmt_pct_kpi(v):
+        return f"{v*100:.1f}%" if v is not None and not pd.isna(v) else "—"
+
+    kpi_items = [
+        ("Jotforms Completed",  str(jotforms_count),       "Number of unique properties with a completed Jotform / AM Rehab Calc submitted."),
+        ("Avg Total Rehab Cost", fmt_k(avg_total),          "Average total estimated cost (Holding + Misc + Renovation) across all walked properties."),
+        ("Avg Renovation Cost",  fmt_k(avg_reno),           "Average renovation-only costs (excludes Holding and Misc) across all walked properties."),
+        ("Avg ARV",              fmt_k(avg_arv),            "Average After Repair Value (ARV / list price) across properties where ARV was entered."),
+        ("Avg Implied Margin",   fmt_k(avg_margin),         "Average implied profit margin: ARV minus purchase price minus total rehab cost."),
+        ("Avg CoC Return",       fmt_pct_kpi(avg_coc),      "Average Cash-on-Cash Return per property: Net Profit / All-In Cost. Only includes properties where both ARV and purchase price are entered."),
+        ("Cost per Sq Ft",       f"${cost_per_sf:,.2f}" if cost_per_sf else "—", "Average total rehab cost divided by above-grade square footage."),
+        ("Total CoC Return",     fmt_pct_kpi(total_coc),   "Aggregate Cash-on-Cash Return: total net profit across all properties divided by total all-in cost."),
     ]
+
     # ── KPI + Donut side by side ──
     kpi_col, chart_col = st.columns([1, 2])
 
     with kpi_col:
-        for label, value, tip in zip(
-            ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
-            [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
-            rehab_kpi_tooltips,
-        ):
+        for label, value, tip in kpi_items:
             st.markdown(
-                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;margin-bottom:8px;">'
-                f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
-                f'<div style="font-size:1.4rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:10px;text-align:center;margin-bottom:6px;">'
+                f'<div style="font-size:0.72rem;color:#666;">{label}</div>'
+                f'<div style="font-size:1.2rem;font-weight:700;color:#1a1a2e;">{value}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
