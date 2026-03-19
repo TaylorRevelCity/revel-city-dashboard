@@ -802,10 +802,12 @@ with tab2:
             fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2,
                           annotation_text="Weekly Goal", annotation_position="top left",
                           annotation_font=dict(color="#7a9a6d", size=11))
+            x_min = wk_data["week"].min() - pd.Timedelta(days=4)
+            x_max = wk_data["week"].max() + pd.Timedelta(days=10)
             fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
                 yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
                 xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
-                           tickangle=-30, tickfont=dict(size=10)),
+                           tickangle=-30, tickfont=dict(size=10), range=[x_min, x_max]),
                 showlegend=False,
                 margin=dict(l=10, r=10, t=5, b=50))
             render_chart(fig, height=380, legend=legend_items)
