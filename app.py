@@ -1290,6 +1290,8 @@ with tab3:
         ["property_address", "property_walker", "date_visited", "renovation_level",
          "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num"]
     ].merge(totals, on="property_address").merge(cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address")
+    props["list_price_arv"] = pd.to_numeric(props["list_price_arv"], errors="coerce").fillna(0)
+    props["purchase_price"] = pd.to_numeric(props["purchase_price"], errors="coerce").fillna(0)
     props["implied_margin"] = props["list_price_arv"] - props["purchase_price"] - props["total_cost"]
 
     # ── KPI cards ──
