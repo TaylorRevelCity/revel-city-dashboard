@@ -13,7 +13,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     .stApp { background-color: #f8f9fb; font-family: 'Inter', sans-serif; }
-    .block-container { padding-top: 1rem; max-width: 100%; padding-left: 2rem; padding-right: 2rem; }
+    .block-container { padding-top: 0.25rem; max-width: 100%; padding-left: 2rem; padding-right: 2rem; }
     .section-banner {
         background: #e8eaef; border-radius: 8px;
         padding: 10px 20px; text-align: center;
