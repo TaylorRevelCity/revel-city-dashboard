@@ -726,8 +726,16 @@ with tab2:
     ]
     ytd_profit_per_deal = sum(ytd_profits) / len(ytd_profits) if ytd_profits else 0
 
-    valid_offer_ask = leads[(leads["offer_amount"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0)]
-    offer_to_ask = (valid_offer_ask["offer_amount"] / valid_offer_ask["asking_price"]).mean() * 100 if not valid_offer_ask.empty else 0
+    cl_offers = leads_raw[
+        (leads_raw["offer_amount"].notna()) & (leads_raw["asking_price"].notna()) & (leads_raw["asking_price"] > 0) &
+        (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    ][["offer_amount", "asking_price"]]
+    sl_offers = seller_leads_raw[
+        (seller_leads_raw["offer_amount"].notna()) & (seller_leads_raw["asking_price"].notna()) & (seller_leads_raw["asking_price"] > 0) &
+        (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    ][["offer_amount", "asking_price"]]
+    all_offers = pd.concat([cl_offers, sl_offers], ignore_index=True)
+    offer_to_ask = (all_offers["offer_amount"] / all_offers["asking_price"]).mean() * 100 if not all_offers.empty else 0
 
     valid_purch_ask = leads[(leads["purchase_price"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0)]
     purchase_to_ask = (valid_purch_ask["purchase_price"] / valid_purch_ask["asking_price"]).mean() * 100 if not valid_purch_ask.empty else 0
