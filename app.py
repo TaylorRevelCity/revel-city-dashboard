@@ -1311,9 +1311,9 @@ with tab3:
             AREA_BUCKET = {
                 "Kitchen": "Kitchen", "Bathrooms": "Bathrooms", "Floors": "Flooring",
                 "Electrical": "Mechanical Systems", "HVAC": "Mechanical Systems", "Plumbing": "Mechanical Systems",
-                "Roof": "Exterior", "Gutters": "Exterior", "Siding or Brick": "Exterior",
-                "Windows": "Exterior", "Driveway": "Exterior", "Deck or Porch": "Exterior",
-                "Yard": "Exterior", "Garage Door": "Exterior", "Carport": "Exterior",
+                "Roof": "Roof", "Gutters": "Gutters", "Siding or Brick": "Siding or Brick",
+                "Windows": "Windows", "Driveway": "Driveway", "Deck or Porch": "Deck or Porch",
+                "Yard": "Yard", "Garage Door": "Garage Door", "Carport": "Carport",
                 "Interior Paint": "Interior Finishes", "Drywall": "Interior Finishes",
                 "Door": "Interior Finishes", "Basement Finish": "Interior Finishes",
                 "Open Walls": "Interior Finishes", "Interior Odors": "Interior Finishes",
@@ -1328,7 +1328,10 @@ with tab3:
             }
             BUCKET_COLORS = {
                 "Kitchen": "#c2703e", "Bathrooms": "#b5856b", "Flooring": "#a0926c",
-                "Mechanical Systems": "#6b8f9e", "Exterior": "#7a9a6d",
+                "Mechanical Systems": "#6b8f9e",
+                "Roof": "#7a9a6d", "Siding or Brick": "#8aab8a", "Windows": "#5c7a8a",
+                "Gutters": "#6b9e8a", "Driveway": "#9db5a0", "Deck or Porch": "#4a7a6b",
+                "Yard": "#7ab58a", "Garage Door": "#5a8a7a", "Carport": "#3a6a5a",
                 "Interior Finishes": "#8aab8a", "Structural": "#5c7a8a",
                 "Contingency": "#c4a882", "Trash": "#9db5a0",
                 "Transaction Costs": "#4a6e7a", "Inspections & Fees": "#7a6b5a",
