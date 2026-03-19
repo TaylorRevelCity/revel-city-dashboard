@@ -1367,3 +1367,26 @@ with tab3:
                 margin=dict(l=10, r=60, t=5, b=30))
             render_chart(fig, height=380)
 
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Cost Drill-Down Treemap ──
+    st.markdown('<p class="chart-title">Cost Drill-Down by Property</p>', unsafe_allow_html=True)
+    if not rehab.empty:
+        import plotly.express as _px
+        tm = rehab[rehab["amount_num"].gt(0)].copy()
+        tm["street"] = tm["property_address"].str.split(",").str[0]
+        fig = _px.treemap(
+            tm,
+            path=[_px.Constant("All Properties"), "street", "cost_category", "area"],
+            values="amount_num",
+            color="cost_category",
+            color_discrete_map={"Renovation": "#c2703e", "Misc": "#a0926c", "Holding": "#7a9a6d"},
+        )
+        fig.update_traces(
+            texttemplate="<b>%{label}</b><br>%{value:$,.0f}",
+            hovertemplate="<b>%{label}</b><br>Amount: <b>%{value:$,.0f}</b><br>%{percentParent:.1%} of parent<extra></extra>",
+            root_color="#f5f5f0",
+        )
+        fig.update_layout(**CHART_BG, height=550, margin=dict(l=10, r=10, t=30, b=10))
+        render_chart(fig, height=590)
+
