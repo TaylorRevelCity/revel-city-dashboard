@@ -1308,23 +1308,40 @@ with tab3:
     with chart_col:
         st.markdown('<p class="chart-title">Cost Breakdown</p>', unsafe_allow_html=True)
         if not rehab.empty:
-            area_totals = rehab[rehab["amount_num"].gt(0)].groupby("area")["amount_num"].sum().reset_index()
-            total = area_totals["amount_num"].sum()
-            area_totals["pct"] = area_totals["amount_num"] / total
-            top = area_totals[area_totals["pct"] >= 0.02].sort_values("amount_num", ascending=False)
-            other_sum = area_totals[area_totals["pct"] < 0.02]["amount_num"].sum()
-            if other_sum > 0:
-                top = pd.concat([top, pd.DataFrame([{"area": "Other", "amount_num": other_sum, "pct": other_sum / total}])], ignore_index=True)
-            PIE_PALETTE = [
-                "#c2703e", "#7a9a6d", "#a0926c", "#6b8f9e", "#b5856b",
-                "#5c7a8a", "#c4a882", "#8aab8a", "#4a6e7a", "#d4956b",
-                "#9db5a0", "#7a6b5a", "#b8c4a8", "#8a6b5c", "#a8b8c4",
-                "#c8a87a", "#6b8a7a", "#b5906b",
-            ]
-            slice_colors = PIE_PALETTE[:len(top)]
+            AREA_BUCKET = {
+                "Kitchen": "Kitchen", "Bathrooms": "Bathrooms", "Floors": "Flooring",
+                "Electrical": "Mechanical Systems", "HVAC": "Mechanical Systems", "Plumbing": "Mechanical Systems",
+                "Roof": "Exterior", "Gutters": "Exterior", "Siding or Brick": "Exterior",
+                "Windows": "Exterior", "Driveway": "Exterior", "Deck or Porch": "Exterior",
+                "Yard": "Exterior", "Garage Door": "Exterior", "Carport": "Exterior",
+                "Interior Paint": "Interior Finishes", "Drywall": "Interior Finishes",
+                "Door": "Interior Finishes", "Basement Finish": "Interior Finishes",
+                "Open Walls": "Interior Finishes", "Interior Odors": "Interior Finishes",
+                "Foundation": "Structural", "Demolition": "Structural",
+                "Contingency": "Contingency", "Trash": "Trash",
+                "Purchase Closing Costs": "Transaction Costs", "Origination Fee": "Transaction Costs",
+                "Selling Commission": "Transaction Costs", "Selling Closing Costs": "Transaction Costs",
+                "Municipality Inspections": "Inspections & Fees", "Home Inspections Costs": "Inspections & Fees",
+                "Staging": "Marketing & Staging", "Final Clean": "Marketing & Staging", "Photography": "Marketing & Staging",
+                "Interest - Hard Money": "Financing",
+                "Insurance": "Holding", "Utilities": "Holding", "Property Taxes": "Holding", "HOA": "Holding",
+            }
+            BUCKET_COLORS = {
+                "Kitchen": "#c2703e", "Bathrooms": "#b5856b", "Flooring": "#a0926c",
+                "Mechanical Systems": "#6b8f9e", "Exterior": "#7a9a6d",
+                "Interior Finishes": "#8aab8a", "Structural": "#5c7a8a",
+                "Contingency": "#c4a882", "Trash": "#9db5a0",
+                "Transaction Costs": "#4a6e7a", "Inspections & Fees": "#7a6b5a",
+                "Marketing & Staging": "#d4956b", "Financing": "#c8a87a", "Holding": "#6b8a7a",
+            }
+            rd = rehab[rehab["amount_num"].gt(0)].copy()
+            rd["bucket"] = rd["area"].map(AREA_BUCKET).fillna("Other")
+            bucket_totals = rd.groupby("bucket")["amount_num"].sum().reset_index(name="amount")
+            bucket_totals = bucket_totals.sort_values("amount", ascending=False)
+            slice_colors = [BUCKET_COLORS.get(b, "#999") for b in bucket_totals["bucket"]]
             fig = go.Figure(go.Pie(
-                labels=top["area"],
-                values=top["amount_num"],
+                labels=bucket_totals["bucket"],
+                values=bucket_totals["amount"],
                 hole=0.4,
                 textinfo="label+percent",
                 textposition="outside",
