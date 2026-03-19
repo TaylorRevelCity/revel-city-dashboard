@@ -838,7 +838,7 @@ with tab2:
                 am_totals[am] = am_totals.get(am, 0) + (entry["profit"] or 0)
         if am_totals:
             fp = pd.DataFrame(list(am_totals.items()), columns=["relationship_manager", "projected_profit"])
-            fp = fp.sort_values("projected_profit", ascending=False)
+            fp = fp[fp["projected_profit"] > 0].sort_values("projected_profit", ascending=False)
             colors = [PERSON_COLORS.get(p, "#999") for p in fp["relationship_manager"]]
             fig = go.Figure(go.Bar(
                 x=fp["relationship_manager"], y=fp["projected_profit"], name="Future Profit",
