@@ -308,8 +308,10 @@ def render_chart(fig, height=300, legend=None, legend_position="top"):
 PERSON_COLORS = {
     "Scotty Patton": "#a0926c",   # tan
     "Wesley Werner": "#c2703e",   # burnt orange
+    "Wes Werner": "#c2703e",      # alias
     "Tony Franks": "#7a9a6d",     # sage green
     "Camron Cathcart": "#8b6f5e", # warm brown
+    "Cameron Cathcart": "#8b6f5e", # alias
     "Taylor Shelpuk": "#d4a857",  # gold
     "Unknown": "#6b8f9e",         # muted teal
 }
