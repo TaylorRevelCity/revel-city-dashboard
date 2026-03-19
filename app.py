@@ -709,16 +709,16 @@ with tab2:
     # ── KPI calculations ──
     ACTIVE_STATUSES = {"Under Contract", "Under Renovation", "List on Market"}
     active_addresses = set(
-        hot_sheet_raw.loc[hot_sheet_raw["status"].isin(ACTIVE_STATUSES), "property_address"]
+        hs_chart.loc[hs_chart["status"].isin(ACTIVE_STATUSES), "property_address"]
         .dropna().str.strip().str.lower()
     )
     # Build address→profit map from ConnectorLeads and SellerLeads (no double-count)
     profit_by_address = {}
-    for _, row in leads_raw[["connector_property", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+    for _, row in leads[["connector_property", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
         addr = row["connector_property"].strip().lower()
         if addr not in profit_by_address:
             profit_by_address[addr] = row["projected_profit"] or 0
-    for _, row in seller_leads_raw[["property_address", "project_profit"]].dropna(subset=["property_address"]).iterrows():
+    for _, row in sl_chart[["property_address", "project_profit"]].dropna(subset=["property_address"]).iterrows():
         addr = row["property_address"].strip().lower()
         if addr not in profit_by_address:
             profit_by_address[addr] = row["project_profit"] or 0
@@ -729,17 +729,17 @@ with tab2:
     # Build address → (closing_date, profit) map from both lead tables (ConnectorLeads takes precedence)
     # ConnectorLeads uses closing_date; SellerLeads falls back to agreement_date
     deal_by_address = {}
-    for _, row in leads_raw[["connector_property", "closing_date", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+    for _, row in leads[["connector_property", "closing_date", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
         addr = row["connector_property"].strip().lower()
         if addr not in deal_by_address:
             deal_by_address[addr] = {"date": row["closing_date"], "profit": row["projected_profit"]}
-    for _, row in seller_leads_raw[["property_address", "agreement_date", "project_profit"]].dropna(subset=["property_address"]).iterrows():
+    for _, row in sl_chart[["property_address", "agreement_date", "project_profit"]].dropna(subset=["property_address"]).iterrows():
         addr = row["property_address"].strip().lower()
         if addr not in deal_by_address:
             deal_by_address[addr] = {"date": row["agreement_date"], "profit": row["project_profit"]}
     # Hot Sheet properties excluding Fell Out of Contract
     eligible_hs = set(
-        hot_sheet_raw.loc[hot_sheet_raw["status"] != "Fell Out of Contract", "property_address"]
+        hs_chart.loc[hs_chart["status"] != "Fell Out of Contract", "property_address"]
         .dropna().str.strip().str.lower()
     )
     def closing_year(d):
@@ -756,30 +756,30 @@ with tab2:
     ]
     ytd_profit_per_deal = sum(ytd_profits) / len(ytd_profits) if ytd_profits else 0
 
-    cl_offers = leads_raw[
-        (leads_raw["offer_amount"].notna()) & (leads_raw["asking_price"].notna()) & (leads_raw["asking_price"] > 0) &
-        (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    cl_offers = leads[
+        (leads["offer_amount"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0) &
+        (pd.to_datetime(leads["created_on"], errors="coerce").dt.year == current_year)
     ][["offer_amount", "asking_price"]]
-    sl_offers = seller_leads_raw[
-        (seller_leads_raw["offer_amount"].notna()) & (seller_leads_raw["asking_price"].notna()) & (seller_leads_raw["asking_price"] > 0) &
-        (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    sl_offers = sl_chart[
+        (sl_chart["offer_amount"].notna()) & (sl_chart["asking_price"].notna()) & (sl_chart["asking_price"] > 0) &
+        (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.year == current_year)
     ][["offer_amount", "asking_price"]]
     all_offers = pd.concat([cl_offers, sl_offers], ignore_index=True)
     offer_to_ask = (all_offers["offer_amount"] / all_offers["asking_price"]).mean() * 100 if not all_offers.empty else 0
 
-    cl_purch = leads_raw[
-        (leads_raw["purchase_price"].notna()) & (leads_raw["asking_price"].notna()) & (leads_raw["asking_price"] > 0) &
-        (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    cl_purch = leads[
+        (leads["purchase_price"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0) &
+        (pd.to_datetime(leads["created_on"], errors="coerce").dt.year == current_year)
     ][["purchase_price", "asking_price"]]
-    sl_purch = seller_leads_raw[
-        (seller_leads_raw["purchase_price"].notna()) & (seller_leads_raw["asking_price"].notna()) & (seller_leads_raw["asking_price"] > 0) &
-        (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    sl_purch = sl_chart[
+        (sl_chart["purchase_price"].notna()) & (sl_chart["asking_price"].notna()) & (sl_chart["asking_price"] > 0) &
+        (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.year == current_year)
     ][["purchase_price", "asking_price"]]
     all_purch = pd.concat([cl_purch, sl_purch], ignore_index=True)
     purchase_to_ask = (all_purch["purchase_price"] / all_purch["asking_price"]).mean() * 100 if not all_purch.empty else 0
 
-    cl_qtr = leads_raw[(pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
-    sl_qtr = seller_leads_raw[(pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
+    cl_qtr = leads[(pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)]
+    sl_qtr = sl_chart[(pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date <= qtr_end)]
     qtr_leads_all = pd.concat([cl_qtr[["purchase_price"]], sl_qtr[["purchase_price"]]], ignore_index=True)
     lead_conversion = (qtr_leads_all["purchase_price"].notna().sum() / len(qtr_leads_all) * 100) if len(qtr_leads_all) > 0 else 0
 
@@ -915,7 +915,7 @@ with tab2:
     with r2c1:
         st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Current Qtr)</p>', unsafe_allow_html=True)
         cl_qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
-        sl_qtr_data = seller_leads_raw[(pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
+        sl_qtr_data = sl_chart[(pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date <= qtr_end)]
         combined_asking = pd.concat([cl_qtr_data["asking_price"], sl_qtr_data["asking_price"]], ignore_index=True)
         combined_offer = pd.concat([cl_qtr_data["offer_amount"], sl_qtr_data["offer_amount"]], ignore_index=True)
         combined_purchase = pd.concat([cl_qtr_data["purchase_price"], sl_qtr_data["purchase_price"]], ignore_index=True)
@@ -989,7 +989,7 @@ with tab2:
     with r2c3:
         st.markdown('<p class="chart-title">Purchase vs Leads (Current Qtr)</p>', unsafe_allow_html=True)
         all_hs_addresses = set(
-            hot_sheet_raw.loc[hot_sheet_raw["status"] != "Fell Out of Contract", "property_address"]
+            hs_chart.loc[hs_chart["status"] != "Fell Out of Contract", "property_address"]
             .dropna().str.strip().str.lower()
         )
         cl_pvl = leads[
@@ -997,9 +997,9 @@ with tab2:
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "purchase_price", "connector_property"]].copy()
         cl_pvl["address"] = cl_pvl["connector_property"].str.strip().str.lower()
-        sl_pvl = seller_leads_raw[
-            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
-            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
+        sl_pvl = sl_chart[
+            (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "purchase_price", "property_address"]].copy()
         sl_pvl["address"] = sl_pvl["property_address"].str.strip().str.lower()
         pvl = pd.concat([
@@ -1096,8 +1096,8 @@ with tab2:
         quarters.reverse()
         qtr_rows = []
         all_leads_qtr = pd.concat([
-            leads_raw[["created_on", "purchase_price"]],
-            seller_leads_raw[["created_on", "purchase_price"]]
+            leads[["created_on", "purchase_price"]],
+            sl_chart[["created_on", "purchase_price"]]
         ], ignore_index=True)
         all_leads_qtr["created_on"] = pd.to_datetime(all_leads_qtr["created_on"], errors="coerce")
         for y, q in quarters:
@@ -1128,8 +1128,8 @@ with tab2:
     with r3c3:
         st.markdown('<p class="chart-title">Exit Strategy</p>', unsafe_allow_html=True)
         exit_all = pd.concat([
-            leads_raw["potential_exit"].dropna(),
-            seller_leads_raw["potential_exit"].dropna()
+            leads["potential_exit"].dropna(),
+            sl_chart["potential_exit"].dropna()
         ], ignore_index=True)
         exit_all = exit_all.str.strip().str.title()
         exit_counts = exit_all.value_counts().reset_index()
@@ -1150,8 +1150,8 @@ with tab2:
     with r3c4:
         st.markdown('<p class="chart-title">Lost Deals</p>', unsafe_allow_html=True)
         lost_all = pd.concat([
-            leads_raw["closed_lost_detail"].dropna(),
-            seller_leads_raw["closed_lost_detail"].dropna()
+            leads["closed_lost_detail"].dropna(),
+            sl_chart["closed_lost_detail"].dropna()
         ], ignore_index=True)
         lost_all = lost_all.str.strip().str.replace(r'\s*-\s*', '-', regex=True).str.title()
         lost_counts = lost_all.value_counts().reset_index()
