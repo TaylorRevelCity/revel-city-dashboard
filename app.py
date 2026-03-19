@@ -326,9 +326,19 @@ def load_contacts():
 def load_connector_leads():
     return run_query(f"SELECT * FROM `{TABLES['connector_leads']}`")
 
+@st.cache_data(ttl=300)
+def load_hot_sheet():
+    return run_query(f"SELECT * FROM `{TABLES['hot_sheet']}`")
+
+@st.cache_data(ttl=300)
+def load_seller_leads():
+    return run_query(f"SELECT * FROM `{TABLES['seller_leads']}`")
+
 tasks_raw = load_tasks()
 contacts_raw = load_contacts()
 leads_raw = load_connector_leads()
+hot_sheet_raw = load_hot_sheet()
+seller_leads_raw = load_seller_leads()
 
 tab1, tab2 = st.tabs(["Connector Dashboard", "AM KPIs"])
 
@@ -667,7 +677,25 @@ with tab2:
         return f"${val/1000:,.1f}K"
 
     # ── KPI calculations ──
-    future_profit = leads.loc[leads["purchase_price"].isna(), "projected_profit"].sum()
+    ACTIVE_STATUSES = {"Under Contract", "Under Renovation", "List on Market"}
+    active_addresses = set(
+        hot_sheet_raw.loc[hot_sheet_raw["status"].isin(ACTIVE_STATUSES), "property_address"]
+        .dropna().str.strip().str.lower()
+    )
+    # Build address→profit map from ConnectorLeads and SellerLeads (no double-count)
+    profit_by_address = {}
+    for _, row in leads_raw[["connector_property", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+        addr = row["connector_property"].strip().lower()
+        if addr not in profit_by_address:
+            profit_by_address[addr] = row["projected_profit"] or 0
+    for _, row in seller_leads_raw[["property_address", "project_profit"]].dropna(subset=["property_address"]).iterrows():
+        addr = row["property_address"].strip().lower()
+        if addr not in profit_by_address:
+            profit_by_address[addr] = row["project_profit"] or 0
+    future_profit = sum(
+        profit_by_address.get(addr, 0) or 0
+        for addr in active_addresses
+    )
     ytd_deals = leads[pd.to_datetime(leads["agreement_date"]).dt.year == current_year]
     ytd_profit_per_deal = ytd_deals["projected_profit"].mean() if not ytd_deals.empty else 0
 
