@@ -820,10 +820,24 @@ with tab2:
     # 2) Future Profit by AM
     with r1c2:
         st.markdown('<p class="chart-title">Future Profit by AM</p>', unsafe_allow_html=True)
-        future = leads[leads["purchase_price"].isna()].copy()
-        if not future.empty:
-            future["relationship_manager"] = future["relationship_manager"].fillna("Unknown")
-            fp = future.groupby("relationship_manager")["projected_profit"].sum().reset_index()
+        # Build address → (am, profit) from both tables; ConnectorLeads takes precedence
+        am_profit_by_address = {}
+        for _, row in leads_raw[["connector_property", "relationship_manager", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+            addr = row["connector_property"].strip().lower()
+            if addr not in am_profit_by_address:
+                am_profit_by_address[addr] = {"am": row["relationship_manager"] or "Unknown", "profit": row["projected_profit"] or 0}
+        for _, row in seller_leads_raw[["property_address", "created_by", "project_profit"]].dropna(subset=["property_address"]).iterrows():
+            addr = row["property_address"].strip().lower()
+            if addr not in am_profit_by_address:
+                am_profit_by_address[addr] = {"am": row["created_by"] or "Unknown", "profit": row["project_profit"] or 0}
+        am_totals = {}
+        for addr in active_addresses:
+            if addr in am_profit_by_address:
+                entry = am_profit_by_address[addr]
+                am = entry["am"] or "Unknown"
+                am_totals[am] = am_totals.get(am, 0) + (entry["profit"] or 0)
+        if am_totals:
+            fp = pd.DataFrame(list(am_totals.items()), columns=["relationship_manager", "projected_profit"])
             fp = fp.sort_values("projected_profit", ascending=False)
             colors = [PERSON_COLORS.get(p, "#999") for p in fp["relationship_manager"]]
             fig = go.Figure(go.Bar(
