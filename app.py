@@ -748,9 +748,10 @@ with tab2:
     all_purch = pd.concat([cl_purch, sl_purch], ignore_index=True)
     purchase_to_ask = (all_purch["purchase_price"] / all_purch["asking_price"]).mean() * 100 if not all_purch.empty else 0
 
-    qtr_leads = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
-    qtr_purchases = qtr_leads[qtr_leads["purchase_price"].notna()]
-    lead_conversion = (len(qtr_purchases) / len(qtr_leads) * 100) if len(qtr_leads) > 0 else 0
+    cl_qtr = leads_raw[(pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
+    sl_qtr = seller_leads_raw[(pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
+    qtr_leads_all = pd.concat([cl_qtr[["purchase_price"]], sl_qtr[["purchase_price"]]], ignore_index=True)
+    lead_conversion = (qtr_leads_all["purchase_price"].notna().sum() / len(qtr_leads_all) * 100) if len(qtr_leads_all) > 0 else 0
 
     # ── KPI cards row ──
     kc1, kc2, kc3, kc4, kc5 = st.columns(5)
