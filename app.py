@@ -778,7 +778,7 @@ with tab2:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Row 1 ──
-    r1c1, r1c2 = st.columns(2)
+    r1c1, r1c2, r1c3 = st.columns(3)
 
     # 1) Properties Walked By Week
     with r1c1:
@@ -856,13 +856,8 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=60))
             render_chart(fig, height=380)
 
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-    # ── Row 2 ──
-    r2c1, r2c2 = st.columns(2)
-
     # 3) Year to Date Properties Walked
-    with r2c1:
+    with r1c3:
         st.markdown('<p class="chart-title">Year to Date Properties Walked</p>', unsafe_allow_html=True)
         ytd_walked = am_tasks_raw[
             (am_tasks_raw["follow_up_type"] == "Property Walk") &
@@ -886,8 +881,13 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=60))
             render_chart(fig, height=380)
 
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 2 ──
+    r2c1, r2c2, r2c3 = st.columns(3)
+
     # 4) Avg Asking vs Offer vs Purchase (Current Qtr)
-    with r2c2:
+    with r2c1:
         st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Current Qtr)</p>', unsafe_allow_html=True)
         cl_qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
         sl_qtr_data = seller_leads_raw[(pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
@@ -918,13 +918,8 @@ with tab2:
             ("Avg Asking", "#a0926c"), ("Avg Offer", "#c2703e"), ("Avg Purchase", "#7a9a6d")
         ])
 
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-    # ── Row 3 ──
-    r3c1, r3c2 = st.columns(2)
-
     # 5) Offers By Week
-    with r3c1:
+    with r2c2:
         st.markdown('<p class="chart-title">Offers By Week (Current Qtr)</p>', unsafe_allow_html=True)
         cl_offers_qtr = leads[
             (leads["offer_amount"].notna()) &
@@ -966,7 +961,7 @@ with tab2:
             render_chart(fig, height=380, legend=legend_items)
 
     # 6) Purchase vs Leads
-    with r3c2:
+    with r2c3:
         st.markdown('<p class="chart-title">Purchase vs Leads</p>', unsafe_allow_html=True)
         pvl = leads.copy()
         if not pvl.empty:
@@ -998,11 +993,11 @@ with tab2:
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
-    # ── Row 4 ──
-    r4c1, _ = st.columns(2)
+    # ── Row 3 ──
+    r3c1, _, _ = st.columns(3)
 
     # 7) Lead Conversion by Quarter
-    with r4c1:
+    with r3c1:
         st.markdown('<p class="chart-title">Lead Conversion by Quarter</p>', unsafe_allow_html=True)
         # Build last 4 quarters
         def quarter_bounds(year, q):
