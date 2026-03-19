@@ -1344,20 +1344,26 @@ with tab3:
             per_prop = rd.groupby(["property_address", "bucket"])["amount_num"].sum().reset_index()
             bucket_totals = per_prop.groupby("bucket")["amount_num"].mean().reset_index(name="amount")
             bucket_totals = bucket_totals.sort_values("amount", ascending=False)
+            _grand = bucket_totals["amount"].sum()
+            bucket_totals["pct"] = bucket_totals["amount"] / _grand
+            # Only show labels for slices >= 2.5%; smaller ones show on hover only
+            bucket_totals["label_text"] = bucket_totals.apply(
+                lambda r: f"{r['bucket']}<br>{r['pct']*100:.1f}%" if r["pct"] >= 0.025 else "", axis=1)
             slice_colors = [BUCKET_COLORS.get(b, "#999") for b in bucket_totals["bucket"]]
             fig = go.Figure(go.Pie(
                 labels=bucket_totals["bucket"],
                 values=bucket_totals["amount"],
                 hole=0.4,
-                textinfo="label+percent",
+                text=bucket_totals["label_text"],
+                texttemplate="%{text}",
                 textposition="outside",
                 textfont=dict(size=11),
                 marker=dict(colors=slice_colors, line=dict(color="white", width=2)),
                 hovertemplate="<b>%{label}</b><br>Avg: $%{value:,.0f} (%{percent})<extra></extra>",
             ))
-            fig.update_layout(**CHART_BG, height=460, showlegend=False,
-                margin=dict(l=80, r=80, t=20, b=20))
-            render_chart(fig, height=500)
+            fig.update_layout(**CHART_BG, height=500, showlegend=False,
+                margin=dict(l=130, r=160, t=30, b=30))
+            render_chart(fig, height=540)
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
