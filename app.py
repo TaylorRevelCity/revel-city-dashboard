@@ -1023,21 +1023,11 @@ with tab2:
     with r3c1:
         st.markdown('<p class="chart-title">Deals</p>', unsafe_allow_html=True)
         six_months_ago = (pd.Timestamp(today) - pd.DateOffset(months=6)).date()
-        am_by_address = {}
-        for _, row in leads_raw[["connector_property", "relationship_manager"]].dropna(subset=["connector_property"]).iterrows():
-            addr = row["connector_property"].strip().lower()
-            if addr not in am_by_address:
-                am_by_address[addr] = row["relationship_manager"] or "Unknown"
-        for _, row in seller_leads_raw[["property_address", "created_by"]].dropna(subset=["property_address"]).iterrows():
-            addr = row["property_address"].strip().lower()
-            if addr not in am_by_address:
-                am_by_address[addr] = row["created_by"] or "Unknown"
-        hs_deals = hot_sheet_raw[hot_sheet_raw["status"] != "Fell Out of Contract"][["property_address", "closing_date"]].copy()
+        hs_deals = hot_sheet_raw[hot_sheet_raw["status"] != "Fell Out of Contract"][["property_address", "closing_date", "lead_manager"]].copy()
         hs_deals = hs_deals.dropna(subset=["closing_date"])
         hs_deals["closing_date"] = pd.to_datetime(hs_deals["closing_date"], errors="coerce")
         hs_deals = hs_deals[hs_deals["closing_date"].dt.date >= six_months_ago]
-        hs_deals["addr"] = hs_deals["property_address"].str.strip().str.lower()
-        hs_deals["am"] = hs_deals["addr"].map(lambda a: am_by_address.get(a, "Unknown"))
+        hs_deals["am"] = hs_deals["lead_manager"].fillna("Unknown")
         hs_deals["month"] = hs_deals["closing_date"].dt.to_period("M").dt.start_time
         if not hs_deals.empty:
             deal_data = hs_deals.groupby(["month", "am"]).size().reset_index(name="count")
