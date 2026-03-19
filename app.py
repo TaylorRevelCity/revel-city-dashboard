@@ -1153,6 +1153,6 @@ with tab2:
             ))
             fig.update_layout(**CHART_BG, height=340, showlegend=False,
                 margin=dict(l=10, r=10, t=5, b=10))
-            render_chart(fig, height=420, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
+            render_chart(fig, height=380, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
 
 
