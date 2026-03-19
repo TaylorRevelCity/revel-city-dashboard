@@ -736,7 +736,7 @@ with tab2:
     kc1, kc2, kc3, kc4, kc5 = st.columns(5)
     for col, label, value in [
         (kc1, "Future Projected Profit", fmt_k(future_profit)),
-        (kc2, "Current Year Profit/Deal", fmt_k(ytd_profit_per_deal if pd.notna(ytd_profit_per_deal) else 0)),
+        (kc2, "Projected Year Profit/Deal", fmt_k(ytd_profit_per_deal if pd.notna(ytd_profit_per_deal) else 0)),
         (kc3, "Offer to Ask", f"{offer_to_ask:.1f}%"),
         (kc4, "Purchase to Ask", f"{purchase_to_ask:.1f}%"),
         (kc5, "Lead Conversion (Qtr)", f"{lead_conversion:.1f}%"),
