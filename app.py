@@ -267,12 +267,12 @@ def render_chart(fig, height=300, legend=None, legend_position="top"):
     </script>
     """
     import json, re
-    fig.update_layout(autosize=True)
+    fig.update_layout(autosize=True, dragmode=False)
 
     # Build trace name list for JS
     trace_names = [t.name or "" for t in fig.data]
 
-    html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False, config={"displayModeBar": False, "responsive": True})
+    html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False, config={"displayModeBar": False, "responsive": True, "scrollZoom": False, "doubleClick": False, "dragmode": False})
     match = re.search(r'id="([^"]+)"', html)
     div_id = match.group(1) if match else ""
 
