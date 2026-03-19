@@ -390,7 +390,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab1, tab2 = st.tabs(["Connector Dashboard", "AM KPIs"])
+tab1, tab2 = st.tabs(["Connector Contacts", "AM KPIs"])
 
 with tab1:
     # ═══════════════════════════════════════════════════
