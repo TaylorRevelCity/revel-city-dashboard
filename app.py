@@ -860,7 +860,7 @@ with tab2:
                 hovertemplate="<b>%{x}</b><br>Projected Profit: <b>%{text}</b><extra></extra>",
             ))
             fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2,
-                          annotation_text="Profit Goal (100,000)", annotation_position="top left",
+                          annotation_text="Profit Goal ($100K)", annotation_position="top right",
                           annotation_font=dict(color="#7a9a6d", size=11))
             fig.update_layout(**CHART_BG, height=340, showlegend=False,
                 yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
