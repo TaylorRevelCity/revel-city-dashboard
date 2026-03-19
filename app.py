@@ -305,13 +305,23 @@ def render_chart(fig, height=300, legend=None, legend_position="top"):
     components.html(wrapper, height=height)
 
 # Consistent person colors across all charts
+NAME_NORMALIZE = {
+    "wes werner": "Wesley Warner",
+    "wesley werner": "Wesley Warner",
+    "wes warner": "Wesley Warner",
+    "cameron cathcart": "Camron Cathcart",
+}
+
+def normalize_name(name):
+    if not name:
+        return "Unknown"
+    return NAME_NORMALIZE.get(name.strip().lower(), name.strip())
+
 PERSON_COLORS = {
     "Scotty Patton": "#a0926c",   # tan
-    "Wesley Werner": "#c2703e",   # burnt orange
-    "Wes Werner": "#c2703e",      # alias
+    "Wesley Warner": "#c2703e",   # burnt orange
     "Tony Franks": "#7a9a6d",     # sage green
     "Camron Cathcart": "#8b6f5e", # warm brown
-    "Cameron Cathcart": "#8b6f5e", # alias
     "Taylor Shelpuk": "#d4a857",  # gold
     "Unknown": "#6b8f9e",         # muted teal
 }
@@ -792,7 +802,7 @@ with tab2:
         ].copy()
         if not walked.empty:
             walked["week"] = pd.to_datetime(walked["due_date"]).dt.to_period("W-SUN").dt.start_time
-            walked["assigned_to"] = walked["assigned_to"].fillna("Unknown")
+            walked["assigned_to"] = walked["assigned_to"].apply(normalize_name)
             wk_data = walked.groupby(["week", "assigned_to"]).size().reset_index(name="count")
             fig = go.Figure()
             legend_items = []
@@ -827,16 +837,16 @@ with tab2:
         for _, row in leads_raw[["connector_property", "relationship_manager", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
             addr = row["connector_property"].strip().lower()
             if addr not in am_profit_by_address:
-                am_profit_by_address[addr] = {"am": row["relationship_manager"] or "Unknown", "profit": row["projected_profit"] or 0}
+                am_profit_by_address[addr] = {"am": normalize_name(row["relationship_manager"]), "profit": row["projected_profit"] or 0}
         for _, row in seller_leads_raw[["property_address", "created_by", "project_profit"]].dropna(subset=["property_address"]).iterrows():
             addr = row["property_address"].strip().lower()
             if addr not in am_profit_by_address:
-                am_profit_by_address[addr] = {"am": row["created_by"] or "Unknown", "profit": row["project_profit"] or 0}
+                am_profit_by_address[addr] = {"am": normalize_name(row["created_by"]), "profit": row["project_profit"] or 0}
         am_totals = {}
         for addr in active_addresses:
             if addr in am_profit_by_address:
                 entry = am_profit_by_address[addr]
-                am = entry["am"] or "Unknown"
+                am = normalize_name(entry["am"])
                 am_totals[am] = am_totals.get(am, 0) + (entry["profit"] or 0)
         if am_totals:
             fp = pd.DataFrame(list(am_totals.items()), columns=["relationship_manager", "projected_profit"])
@@ -867,7 +877,7 @@ with tab2:
             (pd.to_datetime(am_tasks_raw["due_date"]).dt.year == current_year)
         ].copy()
         if not ytd_walked.empty:
-            ytd_walked["assigned_to"] = ytd_walked["assigned_to"].fillna("Unknown")
+            ytd_walked["assigned_to"] = ytd_walked["assigned_to"].apply(normalize_name)
             ytd_wk = ytd_walked.groupby("assigned_to").size().reset_index(name="count").sort_values("count", ascending=False)
             colors = [PERSON_COLORS.get(p, "#999") for p in ytd_wk["assigned_to"]]
             fig = go.Figure(go.Bar(
@@ -928,13 +938,13 @@ with tab2:
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "relationship_manager"]].copy()
-        cl_offers_qtr["am"] = cl_offers_qtr["relationship_manager"].fillna("Unknown")
+        cl_offers_qtr["am"] = cl_offers_qtr["relationship_manager"].apply(normalize_name)
         sl_offers_qtr = seller_leads_raw[
             (seller_leads_raw["offer_amount"].notna()) &
             (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
             (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "created_by"]].copy()
-        sl_offers_qtr["am"] = sl_offers_qtr["created_by"].fillna("Unknown")
+        sl_offers_qtr["am"] = sl_offers_qtr["created_by"].apply(normalize_name)
         offers = pd.concat([
             cl_offers_qtr[["created_on", "am"]],
             sl_offers_qtr[["created_on", "am"]]
@@ -1029,7 +1039,7 @@ with tab2:
         hs_deals = hs_deals.dropna(subset=["closing_date"])
         hs_deals["closing_date"] = pd.to_datetime(hs_deals["closing_date"], errors="coerce")
         hs_deals = hs_deals[hs_deals["closing_date"].dt.date >= six_months_ago]
-        hs_deals["am"] = hs_deals["lead_manager"].fillna("Unknown")
+        hs_deals["am"] = hs_deals["lead_manager"].apply(normalize_name)
         hs_deals["month"] = hs_deals["closing_date"].dt.to_period("M").dt.start_time
         if not hs_deals.empty:
             deal_data = hs_deals.groupby(["month", "am"]).size().reset_index(name="count")
