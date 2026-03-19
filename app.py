@@ -964,7 +964,8 @@ with tab2:
     with r2c3:
         st.markdown('<p class="chart-title">Purchase vs Leads (Current Qtr)</p>', unsafe_allow_html=True)
         all_hs_addresses = set(
-            hot_sheet_raw["property_address"].dropna().str.strip().str.lower()
+            hot_sheet_raw.loc[hot_sheet_raw["status"] != "Fell Out of Contract", "property_address"]
+            .dropna().str.strip().str.lower()
         )
         cl_pvl = leads[
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
