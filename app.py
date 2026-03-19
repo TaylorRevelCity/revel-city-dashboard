@@ -1015,7 +1015,7 @@ with tab2:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Row 3 ──
-    r3c1, r3c2, r3c3 = st.columns([2, 1, 1])
+    r3c1, r3c2, r3c3, r3c4 = st.columns(4)
 
     PIE_COLORS = ["#a0926c", "#7a9a6d", "#c2703e", "#6b8cae", "#c47eb0", "#7eb5c4", "#e8b86d", "#8b7ab5", "#999"]
 
@@ -1060,8 +1060,57 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=50))
             render_chart(fig, height=380, legend=legend_items)
 
-    # 8) Exit Strategy
+    # 8) Lead Conversion by Quarter
     with r3c2:
+        st.markdown('<p class="chart-title">Lead Conversion by Quarter</p>', unsafe_allow_html=True)
+        def quarter_bounds(year, q):
+            start_month = (q - 1) * 3 + 1
+            end_month = start_month + 2
+            import calendar
+            end_day = calendar.monthrange(year, end_month)[1]
+            return date(year, start_month, 1), date(year, end_month, end_day)
+        current_q = (today.month - 1) // 3 + 1
+        quarters = []
+        y, q = current_year, current_q
+        for _ in range(4):
+            quarters.append((y, q))
+            q -= 1
+            if q == 0:
+                q = 4
+                y -= 1
+        quarters.reverse()
+        qtr_rows = []
+        all_leads_qtr = pd.concat([
+            leads_raw[["created_on", "purchase_price"]],
+            seller_leads_raw[["created_on", "purchase_price"]]
+        ], ignore_index=True)
+        all_leads_qtr["created_on"] = pd.to_datetime(all_leads_qtr["created_on"], errors="coerce")
+        for y, q in quarters:
+            qs, qe = quarter_bounds(y, q)
+            mask = (all_leads_qtr["created_on"].dt.date >= qs) & (all_leads_qtr["created_on"].dt.date <= min(qe, today))
+            subset = all_leads_qtr[mask]
+            total = len(subset)
+            purchased = subset["purchase_price"].notna().sum()
+            conversion = (purchased / total * 100) if total > 0 else 0
+            qtr_rows.append({"quarter": f"Q{q} {y}", "conversion": round(conversion, 1), "total": total, "purchased": purchased})
+        qdf = pd.DataFrame(qtr_rows)
+        fig = go.Figure(go.Bar(
+            x=qdf["quarter"], y=qdf["conversion"],
+            marker=beveled_marker("#a0926c"),
+            text=[f"{v:.1f}%" for v in qdf["conversion"]], textposition="outside",
+            textfont=dict(size=12),
+            hovertemplate="<b>%{x}</b><br>Conversion: <b>%{text}</b><br>Purchased: <b>%{customdata[0]}</b> of <b>%{customdata[1]}</b> leads<extra></extra>",
+            customdata=qdf[["purchased", "total"]].values,
+        ))
+        fig.update_layout(**CHART_BG, height=340, showlegend=False,
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True,
+                       ticksuffix="%", range=[0, max(qdf["conversion"].max() * 1.3, 5)]),
+            xaxis=dict(title="", tickfont=dict(size=12)),
+            margin=dict(l=10, r=10, t=5, b=30))
+        render_chart(fig, height=380)
+
+    # 9) Exit Strategy
+    with r3c3:
         st.markdown('<p class="chart-title">Exit Strategy</p>', unsafe_allow_html=True)
         exit_all = pd.concat([
             leads_raw["potential_exit"].dropna(),
@@ -1081,8 +1130,8 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=10))
             render_chart(fig, height=380, legend=list(zip(exit_counts["strategy"], colors)), legend_position="bottom")
 
-    # 9) Lost Deals
-    with r3c3:
+    # 10) Lost Deals
+    with r3c4:
         st.markdown('<p class="chart-title">Lost Deals</p>', unsafe_allow_html=True)
         lost_all = pd.concat([
             leads_raw["closed_lost_detail"].dropna(),
@@ -1102,63 +1151,4 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=10))
             render_chart(fig, height=380, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
 
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-    # ── Row 4 ──
-    r4c1, _, _ = st.columns(3)
-
-    # 10) Lead Conversion by Quarter
-    with r3c1:
-        st.markdown('<p class="chart-title">Lead Conversion by Quarter</p>', unsafe_allow_html=True)
-        # Build last 4 quarters
-        def quarter_bounds(year, q):
-            start_month = (q - 1) * 3 + 1
-            end_month = start_month + 2
-            import calendar
-            end_day = calendar.monthrange(year, end_month)[1]
-            return date(year, start_month, 1), date(year, end_month, end_day)
-
-        current_q = (today.month - 1) // 3 + 1
-        quarters = []
-        y, q = current_year, current_q
-        for _ in range(4):
-            quarters.append((y, q))
-            q -= 1
-            if q == 0:
-                q = 4
-                y -= 1
-        quarters.reverse()
-
-        qtr_rows = []
-        all_leads = pd.concat([
-            leads_raw[["created_on", "purchase_price"]],
-            seller_leads_raw[["created_on", "purchase_price"]]
-        ], ignore_index=True)
-        all_leads["created_on"] = pd.to_datetime(all_leads["created_on"], errors="coerce")
-
-        for y, q in quarters:
-            qs, qe = quarter_bounds(y, q)
-            mask = (all_leads["created_on"].dt.date >= qs) & (all_leads["created_on"].dt.date <= min(qe, today))
-            subset = all_leads[mask]
-            total = len(subset)
-            purchased = subset["purchase_price"].notna().sum()
-            conversion = (purchased / total * 100) if total > 0 else 0
-            label = f"Q{q} {y}"
-            qtr_rows.append({"quarter": label, "conversion": round(conversion, 1), "total": total, "purchased": purchased})
-
-        qdf = pd.DataFrame(qtr_rows)
-        fig = go.Figure(go.Bar(
-            x=qdf["quarter"], y=qdf["conversion"],
-            marker=beveled_marker("#a0926c"),
-            text=[f"{v:.1f}%" for v in qdf["conversion"]], textposition="outside",
-            textfont=dict(size=12),
-            hovertemplate="<b>%{x}</b><br>Conversion: <b>%{text}</b><br>Purchased: <b>%{customdata[0]}</b> of <b>%{customdata[1]}</b> leads<extra></extra>",
-            customdata=qdf[["purchased", "total"]].values,
-        ))
-        fig.update_layout(**CHART_BG, height=340, showlegend=False,
-            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True,
-                       ticksuffix="%", range=[0, max(qdf["conversion"].max() * 1.3, 5)]),
-            xaxis=dict(title="", tickfont=dict(size=12)),
-            margin=dict(l=10, r=10, t=5, b=30))
-        render_chart(fig, height=380)
 
