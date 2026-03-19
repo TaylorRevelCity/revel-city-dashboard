@@ -1224,80 +1224,63 @@ with tab3:
     rehab = rehab_raw.copy()
     rehab["date_visited"] = pd.to_datetime(rehab["date_visited"], errors="coerce")
     rehab["property_walker"] = rehab["property_walker"].apply(normalize_name)
+    rehab["above_grade_sqft"] = pd.to_numeric(rehab["above_grade_sqft"], errors="coerce")
+    rehab["list_price_arv"] = pd.to_numeric(rehab["list_price_arv"], errors="coerce")
+    rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
-    # ── Header + Filters ──
-    rb_ban, rb_fil1, rb_fil2 = st.columns([3, 2, 2])
-    rb_ban.markdown('''<div class="section-banner"><h2>AM Rehab</h2></div>
-<style>
-    div[data-testid="stColumn"]:has(.section-banner) > div {
-        background: #e8eaef !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="stColumn"]:has(.section-banner) .section-banner {
-        background: transparent; padding: 0;
-    }
-</style>
-''', unsafe_allow_html=True)
+    # ── KPI placeholder (fills after filtering, but renders visually at top) ──
+    kpi_container = st.container()
 
-    all_walkers = sorted(rehab["property_walker"].dropna().unique().tolist())
-    with rb_fil1:
-        with st.expander("Acquisition Manager", expanded=False):
-            prev_rw = st.session_state.get("rw_all_prev", True)
-            all_rw = st.checkbox("All", value=True, key="rw_all")
-            if prev_rw and not all_rw:
-                for w in all_walkers: st.session_state[f"rw_{w}"] = False
-            elif not prev_rw and all_rw:
-                for w in all_walkers: st.session_state[f"rw_{w}"] = True
-            st.session_state["rw_all_prev"] = all_rw
-            selected_walkers = []
-            for w in all_walkers:
-                default_w = all_rw if f"rw_{w}" not in st.session_state else st.session_state[f"rw_{w}"]
-                checked_w = st.checkbox(w, value=default_w, key=f"rw_{w}", disabled=all_rw)
-                if all_rw or checked_w:
-                    selected_walkers.append(w)
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
-    reno_levels = sorted(rehab["renovation_level"].dropna().unique().tolist())
-    with rb_fil2:
-        with st.expander("Renovation Level", expanded=False):
-            prev_rl = st.session_state.get("rl_all_prev", True)
-            all_rl = st.checkbox("All", value=True, key="rl_all")
-            if prev_rl and not all_rl:
-                for lvl in reno_levels: st.session_state[f"rl_{lvl}"] = False
-            elif not prev_rl and all_rl:
-                for lvl in reno_levels: st.session_state[f"rl_{lvl}"] = True
-            st.session_state["rl_all_prev"] = all_rl
-            selected_levels = []
-            for lvl in reno_levels:
-                default_rl = all_rl if f"rl_{lvl}" not in st.session_state else st.session_state[f"rl_{lvl}"]
-                checked_rl = st.checkbox(lvl, value=default_rl, key=f"rl_{lvl}", disabled=all_rl)
-                if all_rl or checked_rl:
-                    selected_levels.append(lvl)
+    # ── Filter panel + Donut chart ──
+    filter_col, chart_col = st.columns([1, 2])
 
-    if not all_rw and selected_walkers:
-        rehab = rehab[rehab["property_walker"].isin(selected_walkers)]
-    if not all_rl and selected_levels:
-        rehab = rehab[rehab["renovation_level"].isin(selected_levels)]
+    with filter_col:
+        with st.container(border=True):
+            st.markdown("**Property Address**")
+            all_addrs = sorted(rehab["property_address"].dropna().unique())
+            selected_addrs = st.multiselect("", all_addrs, placeholder="All properties",
+                                            label_visibility="collapsed", key="rehab_addr")
+            st.markdown("**Date Visited**")
+            valid_dates = rehab["date_visited"].dropna()
+            if not valid_dates.empty:
+                min_d, max_d = valid_dates.min().date(), valid_dates.max().date()
+                date_range = st.date_input("", (min_d, max_d), min_value=min_d, max_value=max_d,
+                                           label_visibility="collapsed", key="rehab_dates")
+            else:
+                date_range = None
+
+    # Apply filters
+    if selected_addrs:
+        rehab = rehab[rehab["property_address"].isin(selected_addrs)]
+    if date_range and len(date_range) == 2:
+        rehab = rehab[rehab["date_visited"].dt.date.between(date_range[0], date_range[1])]
 
     # ── Per-property aggregates ──
     totals = rehab.groupby("property_address")["amount_num"].sum().reset_index(name="total_cost")
     cat_totals = rehab.groupby(["property_address", "cost_category"])["amount_num"].sum().unstack(fill_value=0).reset_index()
-    for col in ["Holding", "Misc", "Renovation"]:
-        if col not in cat_totals.columns:
-            cat_totals[col] = 0
+    for _c in ["Holding", "Misc", "Renovation"]:
+        if _c not in cat_totals.columns:
+            cat_totals[_c] = 0
     props = rehab.drop_duplicates("property_address")[
         ["property_address", "property_walker", "date_visited", "renovation_level",
-         "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num"]
-    ].merge(totals, on="property_address").merge(cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address")
-    props["list_price_arv"] = pd.to_numeric(props["list_price_arv"], errors="coerce")
-    props["purchase_price"] = pd.to_numeric(props["purchase_price"], errors="coerce")
-    # Only calculate margin where both ARV and purchase price are present and > 0
+         "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num", "above_grade_sqft"]
+    ].merge(totals, on="property_address").merge(
+        cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address")
     has_both = props["list_price_arv"].gt(0) & props["purchase_price"].gt(0)
-    props["implied_margin"] = (props["list_price_arv"] - props["purchase_price"] - props["total_cost"]).where(has_both)
+    props["all_in_cost"] = props["purchase_price"] + props["total_cost"]
+    props["net_profit"] = (props["list_price_arv"] - props["all_in_cost"]).where(has_both)
+    props["coc_return"] = (props["net_profit"] / props["all_in_cost"]).where(
+        has_both & props["all_in_cost"].gt(0))
+    props["implied_margin"] = props["net_profit"]
 
-    # ── KPI cards ──
-    rk1, rk2, rk3, rk4, rk5 = st.columns(5)
+    # ── Fill KPI cards into top container ──
+    jotforms_count = props["property_address"].nunique()
+    avg_total = props["total_cost"].mean() if not props.empty else 0
+    avg_reno = props["Renovation"].mean() if not props.empty else 0
+    avg_arv = props.loc[props["list_price_arv"].gt(0), "list_price_arv"].mean() if not props.empty else 0
+    avg_margin = props["implied_margin"].mean() if not props.empty else 0
     rehab_kpi_tooltips = [
         "Number of unique properties with a completed Jotform / AM Rehab Calc submitted.",
         "Average total estimated cost (Holding + Misc + Renovation) across all walked properties.",
@@ -1305,98 +1288,98 @@ with tab3:
         "Average After Repair Value (ARV / list price) across all walked properties.",
         "Average implied profit margin: ARV minus purchase price minus total rehab cost.",
     ]
-    jotforms_count = props["property_address"].nunique()
-    avg_total = props["total_cost"].mean() if not props.empty else 0
-    avg_reno = props["Renovation"].mean() if not props.empty else 0
-    avg_arv = props.loc[props["list_price_arv"].gt(0), "list_price_arv"].mean() if not props.empty else 0
-    avg_margin = props["implied_margin"].mean() if not props.empty else 0
-    for col, label, value, tip in zip(
-        [rk1, rk2, rk3, rk4, rk5],
-        ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
-        [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
-        rehab_kpi_tooltips,
-    ):
-        col.markdown(
-            f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
-            f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
-            f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    with kpi_container:
+        rk1, rk2, rk3, rk4, rk5 = st.columns(5)
+        for _col, label, value, tip in zip(
+            [rk1, rk2, rk3, rk4, rk5],
+            ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
+            [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
+            rehab_kpi_tooltips,
+        ):
+            _col.markdown(
+                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
+                f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
+                f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-    # ── Charts ──
-    rc1, rc2 = st.columns(2)
-
-    # 1) Renovation Level Distribution
-    with rc1:
-        st.markdown('<p class="chart-title">Renovation Level</p>', unsafe_allow_html=True)
-        if not props.empty:
-            rl = props["renovation_level"].fillna("Unknown").value_counts().reset_index()
-            rl.columns = ["level", "count"]
-            RENO_COLORS = {"Light": "#7a9a6d", "Medium": "#a0926c", "Heavy": "#c2703e", "Unknown": "#6b8f9e"}
-            rl_colors = [RENO_COLORS.get(l, "#999") for l in rl["level"]]
+    # ── Cost Breakdown donut ──
+    with chart_col:
+        st.markdown('<p class="chart-title">Cost Breakdown</p>', unsafe_allow_html=True)
+        if not rehab.empty:
+            area_totals = rehab[rehab["amount_num"].gt(0)].groupby("area")["amount_num"].sum().reset_index()
+            area_totals = area_totals.sort_values("amount_num", ascending=False)
             fig = go.Figure(go.Pie(
-                labels=rl["level"], values=rl["count"],
-                marker=dict(colors=rl_colors, line=dict(color="white", width=2)),
-                textinfo="percent+value", textfont=dict(size=12),
-                hovertemplate="<b>%{label}</b><br>%{value} properties (%{percent})<extra></extra>",
-            ))
-            fig.update_layout(**CHART_BG, height=340, showlegend=False,
-                margin=dict(l=10, r=10, t=5, b=10))
-            render_chart(fig, height=380, legend=list(zip(rl["level"], rl_colors)), legend_position="bottom")
-
-    # 2) Avg Cost by Renovation Area
-    with rc2:
-        st.markdown('<p class="chart-title">Avg Cost by Renovation Area</p>', unsafe_allow_html=True)
-        reno_items = rehab[rehab["cost_category"] == "Renovation"].copy()
-        if not reno_items.empty:
-            avg_by_area = reno_items.groupby("area")["amount_num"].mean().reset_index(name="avg_cost")
-            avg_by_area = avg_by_area[avg_by_area["avg_cost"] > 0].sort_values("avg_cost", ascending=True)
-            fig = go.Figure(go.Bar(
-                y=avg_by_area["area"], x=avg_by_area["avg_cost"], orientation="h",
-                marker=beveled_marker("#c2703e"),
-                text=[fmt_k(v) for v in avg_by_area["avg_cost"]], textposition="outside",
+                labels=area_totals["area"],
+                values=area_totals["amount_num"],
+                hole=0.4,
+                textinfo="label+percent",
                 textfont=dict(size=10),
-                hovertemplate="<b>%{y}</b><br>Avg Cost: <b>%{text}</b><extra></extra>",
+                hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
             ))
-            fig.update_layout(**CHART_BG, height=340, showlegend=False,
-                yaxis=dict(tickfont=dict(size=10), automargin=True),
-                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=10)),
-                margin=dict(l=10, r=60, t=5, b=30))
-            render_chart(fig, height=380)
+            fig.update_layout(**CHART_BG, height=420, showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=10))
+            render_chart(fig, height=460)
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
-    # ── Cost Drill-Down Table ──
-    st.markdown('<p class="chart-title">Cost Breakdown — Drill Down by Property</p>', unsafe_allow_html=True)
-    if not rehab.empty:
+    # ── Property Detail Table ──
+    st.markdown('<p class="chart-title">Property Details</p>', unsafe_allow_html=True)
+    if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
-        tbl = rehab[rehab["amount_num"].gt(0)][["property_address", "cost_category", "area", "amount_num"]].copy()
+        prop_fields = props[["property_address", "property_walker", "above_grade_sqft",
+                              "bedroom_num", "bathroom_num", "holding_days",
+                              "list_price_arv", "purchase_price", "all_in_cost",
+                              "net_profit", "coc_return"]]
+        tbl = rehab[rehab["amount_num"].gt(0)][
+            ["property_address", "cost_category", "area", "amount_num"]
+        ].merge(prop_fields, on="property_address", how="left")
         tbl = tbl.rename(columns={
             "property_address": "Property",
+            "property_walker": "Walker",
+            "above_grade_sqft": "Sq Ft",
+            "bedroom_num": "Beds",
+            "bathroom_num": "Baths",
+            "holding_days": "Hold",
+            "list_price_arv": "ARV",
+            "purchase_price": "Purchase Price",
+            "all_in_cost": "All In Cost",
+            "net_profit": "Net Profit",
+            "coc_return": "CoC Return",
             "cost_category": "Category",
             "area": "Line Item",
             "amount_num": "Amount",
         })
-        gb = GridOptionsBuilder.from_dataframe(tbl)
-        gb.configure_column("Property", rowGroup=True, hide=True)
-        gb.configure_column("Category", rowGroup=True, hide=True)
-        gb.configure_column("Line Item")
-        gb.configure_column("Amount", aggFunc="sum", type=["numericColumn"],
-            valueFormatter=JsCode("function(p){return p.value==null?'':('$'+Math.round(p.value).toLocaleString())}"))
-        gb.configure_grid_options(
+        fmt_dollar = JsCode("function(p){return p.value==null?'':('$'+Math.round(p.value).toLocaleString())}")
+        fmt_pct = JsCode("function(p){return p.value==null?'':((p.value*100).toFixed(1)+'%')}")
+        gb2 = GridOptionsBuilder.from_dataframe(tbl)
+        gb2.configure_column("Property", rowGroup=True, hide=True)
+        gb2.configure_column("Walker", aggFunc="first")
+        gb2.configure_column("Sq Ft", aggFunc="first", type=["numericColumn"],
+            valueFormatter=JsCode("function(p){return p.value==null?'':Math.round(p.value).toLocaleString()}"))
+        gb2.configure_column("Beds", aggFunc="first", type=["numericColumn"])
+        gb2.configure_column("Baths", aggFunc="first", type=["numericColumn"])
+        gb2.configure_column("Hold", aggFunc="first", type=["numericColumn"])
+        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar)
+        gb2.configure_column("CoC Return", aggFunc="first", type=["numericColumn"], valueFormatter=fmt_pct)
+        gb2.configure_column("ARV", aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar)
+        gb2.configure_column("Purchase Price", aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar)
+        gb2.configure_column("All In Cost", aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar)
+        gb2.configure_column("Category")
+        gb2.configure_column("Line Item")
+        gb2.configure_column("Amount", aggFunc="sum", type=["numericColumn"], valueFormatter=fmt_dollar,
+                             headerName="Total Cost")
+        gb2.configure_grid_options(
             groupDefaultExpanded=0,
             autoGroupColumnDef={
-                "headerName": "Property / Category / Line Item",
-                "minWidth": 320,
+                "headerName": "Property",
+                "minWidth": 280,
                 "cellRendererParams": {"suppressCount": True},
             },
             suppressAggFuncInHeader=True,
         )
-        gb.configure_default_column(resizable=True, sortable=True)
-        go = gb.build()
-        AgGrid(tbl, gridOptions=go, height=500, allow_unsafe_jscode=True,
-               theme="alpine", fit_columns_on_grid_load=False)
+        gb2.configure_default_column(resizable=True, sortable=True, filter=True)
+        AgGrid(tbl, gridOptions=gb2.build(), height=500,
+               allow_unsafe_jscode=True, theme="alpine", fit_columns_on_grid_load=False)
 
