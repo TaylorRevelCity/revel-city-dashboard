@@ -1294,25 +1294,23 @@ with tab3:
         "Average After Repair Value (ARV / list price) across all walked properties.",
         "Average implied profit margin: ARV minus purchase price minus total rehab cost.",
     ]
-    rk1, rk2, rk3, rk4, rk5 = st.columns(5)
-    for _col, label, value, tip in zip(
-        [rk1, rk2, rk3, rk4, rk5],
-        ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
-        [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
-        rehab_kpi_tooltips,
-    ):
-        _col.markdown(
-            f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
-            f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
-            f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    # ── KPI + Donut side by side ──
+    kpi_col, chart_col = st.columns([1, 2])
 
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+    with kpi_col:
+        for label, value, tip in zip(
+            ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
+            [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
+            rehab_kpi_tooltips,
+        ):
+            st.markdown(
+                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;margin-bottom:8px;">'
+                f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
+                f'<div style="font-size:1.4rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-    # ── Cost Breakdown donut ──
-    _, chart_col, _ = st.columns([1, 3, 1])
     with chart_col:
         st.markdown('<p class="chart-title">Avg Cost Breakdown per Property</p>', unsafe_allow_html=True)
         if not rehab.empty:
