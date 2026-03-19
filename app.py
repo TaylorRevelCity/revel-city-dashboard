@@ -1021,7 +1021,7 @@ with tab2:
 
     # 7) Deals (Last 6 Months)
     with r3c1:
-        st.markdown('<p class="chart-title">Deals (Last 6 Months)</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Deals</p>', unsafe_allow_html=True)
         six_months_ago = (pd.Timestamp(today) - pd.DateOffset(months=6)).date()
         am_by_address = {}
         for _, row in leads_raw[["connector_property", "relationship_manager"]].dropna(subset=["connector_property"]).iterrows():
