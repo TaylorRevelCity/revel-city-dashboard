@@ -886,13 +886,17 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=60))
             render_chart(fig, height=380)
 
-    # 4) Avg Asking vs Offer vs Purchase (Past Qtr)
+    # 4) Avg Asking vs Offer vs Purchase (Current Qtr)
     with r2c2:
-        st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Past Qtr)</p>', unsafe_allow_html=True)
-        qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)].copy()
-        avg_asking = qtr_data["asking_price"].mean() if not qtr_data.empty and qtr_data["asking_price"].notna().any() else 0
-        avg_offer = qtr_data["offer_amount"].mean() if not qtr_data.empty and qtr_data["offer_amount"].notna().any() else 0
-        avg_purchase = qtr_data["purchase_price"].mean() if not qtr_data.empty and qtr_data["purchase_price"].notna().any() else 0
+        st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Current Qtr)</p>', unsafe_allow_html=True)
+        cl_qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
+        sl_qtr_data = seller_leads_raw[(pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)]
+        combined_asking = pd.concat([cl_qtr_data["asking_price"], sl_qtr_data["asking_price"]], ignore_index=True)
+        combined_offer = pd.concat([cl_qtr_data["offer_amount"], sl_qtr_data["offer_amount"]], ignore_index=True)
+        combined_purchase = pd.concat([cl_qtr_data["purchase_price"], sl_qtr_data["purchase_price"]], ignore_index=True)
+        avg_asking = combined_asking.mean() if combined_asking.notna().any() else 0
+        avg_offer = combined_offer.mean() if combined_offer.notna().any() else 0
+        avg_purchase = combined_purchase.mean() if combined_purchase.notna().any() else 0
         bar_labels = ["Avg Asking", "Avg Offer", "Avg Purchase"]
         bar_values = [avg_asking if pd.notna(avg_asking) else 0, avg_offer if pd.notna(avg_offer) else 0, avg_purchase if pd.notna(avg_purchase) else 0]
         bar_colors = ["#a0926c", "#c2703e", "#7a9a6d"]
