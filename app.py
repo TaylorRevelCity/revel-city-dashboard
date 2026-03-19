@@ -962,10 +962,18 @@ with tab2:
 
     # 6) Purchase vs Leads
     with r2c3:
-        st.markdown('<p class="chart-title">Purchase vs Leads</p>', unsafe_allow_html=True)
-        pvl = leads.copy()
+        st.markdown('<p class="chart-title">Purchase vs Leads (Current Qtr)</p>', unsafe_allow_html=True)
+        cl_pvl = leads[
+            (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
+        ][["created_on", "purchase_price"]].copy()
+        sl_pvl = seller_leads_raw[
+            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
+        ][["created_on", "purchase_price"]].copy()
+        pvl = pd.concat([cl_pvl, sl_pvl], ignore_index=True)
         if not pvl.empty:
-            pvl["week"] = pd.to_datetime(pvl["created_on"]).dt.to_period("W-SUN").dt.start_time
+            pvl["week"] = pd.to_datetime(pvl["created_on"], errors="coerce").dt.to_period("W-SUN").dt.start_time
             total_leads = pvl.groupby("week").size().reset_index(name="leads")
             purchases = pvl[pvl["purchase_price"].notna()].groupby("week").size().reset_index(name="purchases")
             merged = total_leads.merge(purchases, on="week", how="left").fillna(0)
