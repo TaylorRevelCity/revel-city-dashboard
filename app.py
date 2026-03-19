@@ -357,9 +357,15 @@ hot_sheet_raw = load_hot_sheet()
 seller_leads_raw = load_seller_leads()
 am_tasks_raw = load_am_tasks()
 
-col_logo, col_mid, col_right = st.columns([1, 2, 1])
-with col_logo:
-    st.image("assets/Revel City Homebuyers Logo_full color.png", width=220)
+import base64 as _b64
+with open("assets/Revel City Homebuyers Logo_full color.png", "rb") as _f:
+    _logo_b64 = _b64.b64encode(_f.read()).decode()
+st.markdown(
+    f'<div style="padding:8px 0 4px 0;">'
+    f'<img src="data:image/png;base64,{_logo_b64}" style="height:56px;">'
+    f'</div>',
+    unsafe_allow_html=True,
+)
 
 tab1, tab2 = st.tabs(["Connector Dashboard", "AM KPIs"])
 
