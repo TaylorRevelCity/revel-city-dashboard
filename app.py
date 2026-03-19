@@ -963,19 +963,30 @@ with tab2:
     # 6) Purchase vs Leads
     with r2c3:
         st.markdown('<p class="chart-title">Purchase vs Leads (Current Qtr)</p>', unsafe_allow_html=True)
+        all_hs_addresses = set(
+            hot_sheet_raw["property_address"].dropna().str.strip().str.lower()
+        )
         cl_pvl = leads[
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
-        ][["created_on", "purchase_price"]].copy()
+        ][["created_on", "purchase_price", "connector_property"]].copy()
+        cl_pvl["address"] = cl_pvl["connector_property"].str.strip().str.lower()
         sl_pvl = seller_leads_raw[
             (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
             (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
-        ][["created_on", "purchase_price"]].copy()
-        pvl = pd.concat([cl_pvl, sl_pvl], ignore_index=True)
+        ][["created_on", "purchase_price", "property_address"]].copy()
+        sl_pvl["address"] = sl_pvl["property_address"].str.strip().str.lower()
+        pvl = pd.concat([
+            cl_pvl[["created_on", "purchase_price", "address"]],
+            sl_pvl[["created_on", "purchase_price", "address"]]
+        ], ignore_index=True)
         if not pvl.empty:
             pvl["week"] = pd.to_datetime(pvl["created_on"], errors="coerce").dt.to_period("W-SUN").dt.start_time
             total_leads = pvl.groupby("week").size().reset_index(name="leads")
-            purchases = pvl[pvl["purchase_price"].notna()].groupby("week").size().reset_index(name="purchases")
+            purchases = pvl[
+                pvl["purchase_price"].notna() &
+                pvl["address"].isin(all_hs_addresses)
+            ].groupby("week").size().reset_index(name="purchases")
             merged = total_leads.merge(purchases, on="week", how="left").fillna(0)
             merged["purchases"] = merged["purchases"].astype(int)
             fig = go.Figure()
