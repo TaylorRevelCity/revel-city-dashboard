@@ -785,6 +785,7 @@ with tab2:
         st.markdown('<p class="chart-title">Properties Walked By Week</p>', unsafe_allow_html=True)
         walked = am_tasks_raw[
             (am_tasks_raw["follow_up_type"] == "Property Walk") &
+            (am_tasks_raw["follow_up_status"] == "Complete") &
             (pd.to_datetime(am_tasks_raw["due_date"]).dt.date >= qtr_start)
         ].copy()
         if not walked.empty:
@@ -851,6 +852,7 @@ with tab2:
         st.markdown('<p class="chart-title">Year to Date Properties Walked</p>', unsafe_allow_html=True)
         ytd_walked = am_tasks_raw[
             (am_tasks_raw["follow_up_type"] == "Property Walk") &
+            (am_tasks_raw["follow_up_status"] == "Complete") &
             (pd.to_datetime(am_tasks_raw["due_date"]).dt.year == current_year)
         ].copy()
         if not ytd_walked.empty:
