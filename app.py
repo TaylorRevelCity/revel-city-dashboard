@@ -737,8 +737,16 @@ with tab2:
     all_offers = pd.concat([cl_offers, sl_offers], ignore_index=True)
     offer_to_ask = (all_offers["offer_amount"] / all_offers["asking_price"]).mean() * 100 if not all_offers.empty else 0
 
-    valid_purch_ask = leads[(leads["purchase_price"].notna()) & (leads["asking_price"].notna()) & (leads["asking_price"] > 0)]
-    purchase_to_ask = (valid_purch_ask["purchase_price"] / valid_purch_ask["asking_price"]).mean() * 100 if not valid_purch_ask.empty else 0
+    cl_purch = leads_raw[
+        (leads_raw["purchase_price"].notna()) & (leads_raw["asking_price"].notna()) & (leads_raw["asking_price"] > 0) &
+        (pd.to_datetime(leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    ][["purchase_price", "asking_price"]]
+    sl_purch = seller_leads_raw[
+        (seller_leads_raw["purchase_price"].notna()) & (seller_leads_raw["asking_price"].notna()) & (seller_leads_raw["asking_price"] > 0) &
+        (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.year == current_year)
+    ][["purchase_price", "asking_price"]]
+    all_purch = pd.concat([cl_purch, sl_purch], ignore_index=True)
+    purchase_to_ask = (all_purch["purchase_price"] / all_purch["asking_price"]).mean() * 100 if not all_purch.empty else 0
 
     qtr_leads = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
     qtr_purchases = qtr_leads[qtr_leads["purchase_price"].notna()]
