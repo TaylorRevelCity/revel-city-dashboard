@@ -1004,7 +1004,8 @@ with tab2:
             fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
                 yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
                 xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
-                           tickangle=-30, tickfont=dict(size=10)),
+                           tickangle=-30, tickfont=dict(size=10),
+                           dtick=7 * 24 * 60 * 60 * 1000, ticklabelmode="period"),
                 showlegend=False,
                 margin=dict(l=10, r=10, t=5, b=50))
             render_chart(fig, height=380, legend=[
