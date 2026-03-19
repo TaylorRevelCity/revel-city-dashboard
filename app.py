@@ -1224,7 +1224,7 @@ with tab3:
     rehab = rehab_raw.copy()
     rehab["date_visited"] = pd.to_datetime(rehab["date_visited"], errors="coerce")
     rehab["property_walker"] = rehab["property_walker"].apply(normalize_name)
-    rehab["above_grade_sqft"] = pd.to_numeric(rehab["above_grade_sqft"], errors="coerce")
+    rehab["above_grade_sqft"] = pd.to_numeric(rehab["above_grade_sqft"].astype(str).str.replace(",", ""), errors="coerce")
     rehab["list_price_arv"] = pd.to_numeric(rehab["list_price_arv"], errors="coerce")
     rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
