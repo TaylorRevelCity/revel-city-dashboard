@@ -665,27 +665,40 @@ with tab2:
 </style>
 ''', unsafe_allow_html=True)
 
-    all_rms = sorted(leads["relationship_manager"].dropna().unique().tolist())
+    all_ams = sorted(set(
+        list(am_tasks_raw["assigned_to"].dropna().map(normalize_name)) +
+        list(leads_raw["relationship_manager"].dropna().map(normalize_name)) +
+        list(seller_leads_raw["created_by"].dropna().map(normalize_name)) +
+        list(hot_sheet_raw["lead_manager"].dropna().map(normalize_name))
+    ) - {"Unknown"})
     with am_fil:
-        with st.expander("Relationship Manager", expanded=False):
+        with st.expander("Acquisition Manager", expanded=False):
             prev_all_rm = st.session_state.get("rm_all_prev", True)
             all_rm_selected = st.checkbox("All", value=True, key="rm_all")
             if prev_all_rm and not all_rm_selected:
-                for rm in all_rms:
-                    st.session_state[f"rm_{rm}"] = False
+                for am in all_ams:
+                    st.session_state[f"rm_{am}"] = False
             elif not prev_all_rm and all_rm_selected:
-                for rm in all_rms:
-                    st.session_state[f"rm_{rm}"] = True
+                for am in all_ams:
+                    st.session_state[f"rm_{am}"] = True
             st.session_state["rm_all_prev"] = all_rm_selected
-            selected_rms = []
-            for rm in all_rms:
-                default_rm = all_rm_selected if f"rm_{rm}" not in st.session_state else st.session_state[f"rm_{rm}"]
-                checked_rm = st.checkbox(rm, value=default_rm, key=f"rm_{rm}", disabled=all_rm_selected)
+            selected_ams = []
+            for am in all_ams:
+                default_rm = all_rm_selected if f"rm_{am}" not in st.session_state else st.session_state[f"rm_{am}"]
+                checked_rm = st.checkbox(am, value=default_rm, key=f"rm_{am}", disabled=all_rm_selected)
                 if all_rm_selected or checked_rm:
-                    selected_rms.append(rm)
+                    selected_ams.append(am)
 
-    if selected_rms:
-        leads = leads[leads["relationship_manager"].isin(selected_rms)]
+    if not all_rm_selected and selected_ams:
+        leads = leads_raw[leads_raw["relationship_manager"].apply(normalize_name).isin(selected_ams)].copy()
+        am_tasks = am_tasks_raw[am_tasks_raw["assigned_to"].apply(normalize_name).isin(selected_ams)].copy()
+        sl_chart = seller_leads_raw[seller_leads_raw["created_by"].apply(normalize_name).isin(selected_ams)].copy()
+        hs_chart = hot_sheet_raw[hot_sheet_raw["lead_manager"].apply(normalize_name).isin(selected_ams)].copy()
+    else:
+        leads = leads_raw.copy()
+        am_tasks = am_tasks_raw.copy()
+        sl_chart = seller_leads_raw.copy()
+        hs_chart = hot_sheet_raw.copy()
 
     # ── Helper: format currency as K ──
     def fmt_k(val):
@@ -795,10 +808,10 @@ with tab2:
     # 1) Properties Walked By Week
     with r1c1:
         st.markdown('<p class="chart-title">Properties Walked By Week</p>', unsafe_allow_html=True)
-        walked = am_tasks_raw[
-            (am_tasks_raw["follow_up_type"] == "Property Walk") &
-            (am_tasks_raw["follow_up_status"] == "Complete") &
-            (pd.to_datetime(am_tasks_raw["due_date"]).dt.date >= qtr_start)
+        walked = am_tasks[
+            (am_tasks["follow_up_type"] == "Property Walk") &
+            (am_tasks["follow_up_status"] == "Complete") &
+            (pd.to_datetime(am_tasks["due_date"]).dt.date >= qtr_start)
         ].copy()
         if not walked.empty:
             walked["week"] = pd.to_datetime(walked["due_date"]).dt.to_period("W-SUN").dt.start_time
@@ -834,11 +847,11 @@ with tab2:
         st.markdown('<p class="chart-title">Future Profit by AM</p>', unsafe_allow_html=True)
         # Build address → (am, profit) from both tables; ConnectorLeads takes precedence
         am_profit_by_address = {}
-        for _, row in leads_raw[["connector_property", "relationship_manager", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+        for _, row in leads[["connector_property", "relationship_manager", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
             addr = row["connector_property"].strip().lower()
             if addr not in am_profit_by_address:
                 am_profit_by_address[addr] = {"am": normalize_name(row["relationship_manager"]), "profit": row["projected_profit"] or 0}
-        for _, row in seller_leads_raw[["property_address", "created_by", "project_profit"]].dropna(subset=["property_address"]).iterrows():
+        for _, row in sl_chart[["property_address", "created_by", "project_profit"]].dropna(subset=["property_address"]).iterrows():
             addr = row["property_address"].strip().lower()
             if addr not in am_profit_by_address:
                 am_profit_by_address[addr] = {"am": normalize_name(row["created_by"]), "profit": row["project_profit"] or 0}
@@ -871,10 +884,10 @@ with tab2:
     # 3) Year to Date Properties Walked
     with r1c3:
         st.markdown('<p class="chart-title">Year to Date Properties Walked</p>', unsafe_allow_html=True)
-        ytd_walked = am_tasks_raw[
-            (am_tasks_raw["follow_up_type"] == "Property Walk") &
-            (am_tasks_raw["follow_up_status"] == "Complete") &
-            (pd.to_datetime(am_tasks_raw["due_date"]).dt.year == current_year)
+        ytd_walked = am_tasks[
+            (am_tasks["follow_up_type"] == "Property Walk") &
+            (am_tasks["follow_up_status"] == "Complete") &
+            (pd.to_datetime(am_tasks["due_date"]).dt.year == current_year)
         ].copy()
         if not ytd_walked.empty:
             ytd_walked["assigned_to"] = ytd_walked["assigned_to"].apply(normalize_name)
@@ -939,10 +952,10 @@ with tab2:
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "relationship_manager"]].copy()
         cl_offers_qtr["am"] = cl_offers_qtr["relationship_manager"].apply(normalize_name)
-        sl_offers_qtr = seller_leads_raw[
-            (seller_leads_raw["offer_amount"].notna()) &
-            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
-            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
+        sl_offers_qtr = sl_chart[
+            (sl_chart["offer_amount"].notna()) &
+            (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date <= qtr_end)
         ][["created_on", "created_by"]].copy()
         sl_offers_qtr["am"] = sl_offers_qtr["created_by"].apply(normalize_name)
         offers = pd.concat([
@@ -1035,7 +1048,7 @@ with tab2:
     with r3c1:
         st.markdown('<p class="chart-title">Deals</p>', unsafe_allow_html=True)
         six_months_ago = (pd.Timestamp(today) - pd.DateOffset(months=6)).date()
-        hs_deals = hot_sheet_raw[hot_sheet_raw["status"] != "Fell Out of Contract"][["property_address", "closing_date", "lead_manager"]].copy()
+        hs_deals = hs_chart[hs_chart["status"] != "Fell Out of Contract"][["property_address", "closing_date", "lead_manager"]].copy()
         hs_deals = hs_deals.dropna(subset=["closing_date"])
         hs_deals["closing_date"] = pd.to_datetime(hs_deals["closing_date"], errors="coerce")
         hs_deals = hs_deals[hs_deals["closing_date"].dt.date >= six_months_ago]
