@@ -696,12 +696,13 @@ with tab2:
         profit_by_address.get(addr, 0) or 0
         for addr in active_addresses
     )
-    # Build address → (agreement_date, profit) map from both lead tables (ConnectorLeads takes precedence)
+    # Build address → (closing_date, profit) map from both lead tables (ConnectorLeads takes precedence)
+    # ConnectorLeads uses closing_date; SellerLeads falls back to agreement_date
     deal_by_address = {}
-    for _, row in leads_raw[["connector_property", "agreement_date", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
+    for _, row in leads_raw[["connector_property", "closing_date", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
         addr = row["connector_property"].strip().lower()
         if addr not in deal_by_address:
-            deal_by_address[addr] = {"date": row["agreement_date"], "profit": row["projected_profit"]}
+            deal_by_address[addr] = {"date": row["closing_date"], "profit": row["projected_profit"]}
     for _, row in seller_leads_raw[["property_address", "agreement_date", "project_profit"]].dropna(subset=["property_address"]).iterrows():
         addr = row["property_address"].strip().lower()
         if addr not in deal_by_address:
@@ -711,12 +712,15 @@ with tab2:
         hot_sheet_raw.loc[hot_sheet_raw["status"] != "Fell Out of Contract", "property_address"]
         .dropna().str.strip().str.lower()
     )
+    def closing_year(d):
+        if d is None or (hasattr(d, '__class__') and pd.isna(d)):
+            return None
+        return (pd.Timestamp(d) + pd.DateOffset(months=3)).year
     ytd_profits = [
         float(deal_by_address[addr]["profit"])
         for addr in eligible_hs
         if addr in deal_by_address
-        and pd.notna(deal_by_address[addr]["date"])
-        and pd.Timestamp(deal_by_address[addr]["date"]).year == current_year
+        and closing_year(deal_by_address[addr]["date"]) == current_year
         and deal_by_address[addr]["profit"] is not None
         and pd.notna(deal_by_address[addr]["profit"])
     ]
