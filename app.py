@@ -1306,7 +1306,7 @@ with tab3:
 
     # ── Cost Breakdown donut ──
     with chart_col:
-        st.markdown('<p class="chart-title">Cost Breakdown</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Avg Cost Breakdown per Property</p>', unsafe_allow_html=True)
         if not rehab.empty:
             AREA_BUCKET = {
                 "Kitchen": "Kitchen", "Bathrooms": "Bathrooms", "Floors": "Flooring",
@@ -1314,9 +1314,9 @@ with tab3:
                 "Roof": "Roof", "Gutters": "Gutters", "Siding or Brick": "Siding or Brick",
                 "Windows": "Windows", "Driveway": "Driveway", "Deck or Porch": "Deck or Porch",
                 "Yard": "Yard", "Garage Door": "Garage Door", "Carport": "Carport",
-                "Interior Paint": "Interior Finishes", "Drywall": "Interior Finishes",
-                "Door": "Interior Finishes", "Basement Finish": "Interior Finishes",
-                "Open Walls": "Interior Finishes", "Interior Odors": "Interior Finishes",
+                "Interior Paint": "Interior Paint", "Drywall": "Drywall",
+                "Door": "Door", "Basement Finish": "Basement Finish",
+                "Open Walls": "Open Walls", "Interior Odors": "Interior Odors",
                 "Foundation": "Structural", "Demolition": "Structural",
                 "Contingency": "Contingency", "Trash": "Trash",
                 "Purchase Closing Costs": "Transaction Costs", "Origination Fee": "Transaction Costs",
@@ -1332,14 +1332,17 @@ with tab3:
                 "Roof": "#7a9a6d", "Siding or Brick": "#8aab8a", "Windows": "#5c7a8a",
                 "Gutters": "#6b9e8a", "Driveway": "#9db5a0", "Deck or Porch": "#4a7a6b",
                 "Yard": "#7ab58a", "Garage Door": "#5a8a7a", "Carport": "#3a6a5a",
-                "Interior Finishes": "#8aab8a", "Structural": "#5c7a8a",
+                "Interior Paint": "#c8a87a", "Drywall": "#b5906b", "Door": "#a07850",
+                "Basement Finish": "#d4b88a", "Open Walls": "#c4a070", "Interior Odors": "#b89060",
+                "Structural": "#5c7a8a",
                 "Contingency": "#c4a882", "Trash": "#9db5a0",
                 "Transaction Costs": "#4a6e7a", "Inspections & Fees": "#7a6b5a",
                 "Marketing & Staging": "#d4956b", "Financing": "#c8a87a", "Holding": "#6b8a7a",
             }
             rd = rehab[rehab["amount_num"].gt(0)].copy()
             rd["bucket"] = rd["area"].map(AREA_BUCKET).fillna("Other")
-            bucket_totals = rd.groupby("bucket")["amount_num"].sum().reset_index(name="amount")
+            per_prop = rd.groupby(["property_address", "bucket"])["amount_num"].sum().reset_index()
+            bucket_totals = per_prop.groupby("bucket")["amount_num"].mean().reset_index(name="amount")
             bucket_totals = bucket_totals.sort_values("amount", ascending=False)
             slice_colors = [BUCKET_COLORS.get(b, "#999") for b in bucket_totals["bucket"]]
             fig = go.Figure(go.Pie(
@@ -1350,7 +1353,7 @@ with tab3:
                 textposition="outside",
                 textfont=dict(size=11),
                 marker=dict(colors=slice_colors, line=dict(color="white", width=2)),
-                hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
+                hovertemplate="<b>%{label}</b><br>Avg: $%{value:,.0f} (%{percent})<extra></extra>",
             ))
             fig.update_layout(**CHART_BG, height=460, showlegend=False,
                 margin=dict(l=80, r=80, t=20, b=20))
