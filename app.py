@@ -1015,9 +1015,99 @@ with tab2:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Row 3 ──
-    r3c1, _, _ = st.columns(3)
+    r3c1, r3c2, r3c3 = st.columns(3)
 
-    # 7) Lead Conversion by Quarter
+    PIE_COLORS = ["#a0926c", "#7a9a6d", "#c2703e", "#6b8cae", "#c47eb0", "#7eb5c4", "#e8b86d", "#8b7ab5", "#999"]
+
+    # 7) Deals (Last 6 Months)
+    with r3c1:
+        st.markdown('<p class="chart-title">Deals (Last 6 Months)</p>', unsafe_allow_html=True)
+        six_months_ago = (pd.Timestamp(today) - pd.DateOffset(months=6)).date()
+        am_by_address = {}
+        for _, row in leads_raw[["connector_property", "relationship_manager"]].dropna(subset=["connector_property"]).iterrows():
+            addr = row["connector_property"].strip().lower()
+            if addr not in am_by_address:
+                am_by_address[addr] = row["relationship_manager"] or "Unknown"
+        for _, row in seller_leads_raw[["property_address", "created_by"]].dropna(subset=["property_address"]).iterrows():
+            addr = row["property_address"].strip().lower()
+            if addr not in am_by_address:
+                am_by_address[addr] = row["created_by"] or "Unknown"
+        hs_deals = hot_sheet_raw[hot_sheet_raw["status"] != "Fell Out of Contract"][["property_address", "closing_date"]].copy()
+        hs_deals = hs_deals.dropna(subset=["closing_date"])
+        hs_deals["closing_date"] = pd.to_datetime(hs_deals["closing_date"], errors="coerce")
+        hs_deals = hs_deals[hs_deals["closing_date"].dt.date >= six_months_ago]
+        hs_deals["addr"] = hs_deals["property_address"].str.strip().str.lower()
+        hs_deals["am"] = hs_deals["addr"].map(lambda a: am_by_address.get(a, "Unknown"))
+        hs_deals["month"] = hs_deals["closing_date"].dt.to_period("M").dt.start_time
+        if not hs_deals.empty:
+            deal_data = hs_deals.groupby(["month", "am"]).size().reset_index(name="count")
+            fig = go.Figure()
+            legend_items = []
+            for person in sorted(deal_data["am"].unique()):
+                color = PERSON_COLORS.get(person, "#999")
+                legend_items.append((person, color))
+                pdf = deal_data[deal_data["am"] == person]
+                fig.add_trace(go.Bar(
+                    x=pdf["month"], y=pdf["count"], name=person,
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>" + person + "</b><br>%{x|%b %Y}<br>Deals: <b>%{y}</b><extra></extra>",
+                ))
+            fig.update_layout(**CHART_BG, barmode="stack", height=340, bargap=0.2,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=1),
+                xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10), dtick="M1"),
+                showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=legend_items)
+
+    # 8) Exit Strategy
+    with r3c2:
+        st.markdown('<p class="chart-title">Exit Strategy</p>', unsafe_allow_html=True)
+        exit_all = pd.concat([
+            leads_raw["potential_exit"].dropna(),
+            seller_leads_raw["potential_exit"].dropna()
+        ], ignore_index=True)
+        exit_counts = exit_all.value_counts().reset_index()
+        exit_counts.columns = ["strategy", "count"]
+        if not exit_counts.empty:
+            colors = PIE_COLORS[:len(exit_counts)]
+            fig = go.Figure(go.Pie(
+                labels=exit_counts["strategy"], values=exit_counts["count"],
+                marker=dict(colors=colors, line=dict(color="white", width=2)),
+                textinfo="percent", textfont=dict(size=11),
+                hovertemplate="<b>%{label}</b><br>%{value} leads (%{percent})<extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=10))
+            render_chart(fig, height=380, legend=list(zip(exit_counts["strategy"], colors)), legend_position="bottom")
+
+    # 9) Lost Deals
+    with r3c3:
+        st.markdown('<p class="chart-title">Lost Deals</p>', unsafe_allow_html=True)
+        lost_all = pd.concat([
+            leads_raw["closed_lost_detail"].dropna(),
+            seller_leads_raw["closed_lost_detail"].dropna()
+        ], ignore_index=True)
+        lost_counts = lost_all.value_counts().reset_index()
+        lost_counts.columns = ["reason", "count"]
+        if not lost_counts.empty:
+            colors = PIE_COLORS[:len(lost_counts)]
+            fig = go.Figure(go.Pie(
+                labels=lost_counts["reason"], values=lost_counts["count"],
+                marker=dict(colors=colors, line=dict(color="white", width=2)),
+                textinfo="percent", textfont=dict(size=11),
+                hovertemplate="<b>%{label}</b><br>%{value} leads (%{percent})<extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=10))
+            render_chart(fig, height=380, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 4 ──
+    r4c1, _, _ = st.columns(3)
+
+    # 10) Lead Conversion by Quarter
     with r3c1:
         st.markdown('<p class="chart-title">Lead Conversion by Quarter</p>', unsafe_allow_html=True)
         # Build last 4 quarters
