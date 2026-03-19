@@ -908,7 +908,7 @@ with tab2:
                 text=[fmt_k(val)], textposition="outside",
                 textfont=dict(size=11),
                 hovertemplate="<b>" + lbl + "</b><br>%{y:$,.0f}<extra></extra>",
-                width=0.4,
+                width=0.6,
             ))
         fig.update_layout(**CHART_BG, height=340, showlegend=False,
             yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
