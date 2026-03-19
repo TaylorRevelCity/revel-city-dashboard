@@ -1228,34 +1228,40 @@ with tab3:
     rehab["list_price_arv"] = pd.to_numeric(rehab["list_price_arv"], errors="coerce")
     rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
-    # ── KPI placeholder (fills after filtering, but renders visually at top) ──
-    kpi_container = st.container()
-
-    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
-
-    # ── Filter panel + Donut chart ──
-    filter_col, chart_col = st.columns([1, 2])
-
-    with filter_col:
-        with st.container(border=True):
-            st.markdown("**Property Address**")
-            all_addrs = sorted(rehab["property_address"].dropna().unique())
-            selected_addrs = st.multiselect("", all_addrs, placeholder="All properties",
-                                            label_visibility="collapsed", key="rehab_addr")
-            st.markdown("**Date Visited**")
-            valid_dates = rehab["date_visited"].dropna()
-            if not valid_dates.empty:
-                min_d, max_d = valid_dates.min().date(), valid_dates.max().date()
-                date_range = st.date_input("", (min_d, max_d), min_value=min_d, max_value=max_d,
-                                           label_visibility="collapsed", key="rehab_dates")
+    # ── Filters (at top, above KPIs) ──
+    faddr_col, fdate_col = st.columns([1, 2])
+    with faddr_col:
+        all_addrs = sorted(rehab["property_address"].dropna().unique())
+        selected_addrs = st.multiselect("Property Address", all_addrs,
+                                        placeholder="All properties", key="rehab_addr")
+    with fdate_col:
+        valid_dates = rehab["date_visited"].dropna()
+        if not valid_dates.empty:
+            month_range = pd.date_range(
+                start=valid_dates.min().to_period("M").to_timestamp(),
+                end=valid_dates.max().to_period("M").to_timestamp(),
+                freq="MS"
+            )
+            month_labels = [m.strftime("%b %Y") for m in month_range]
+            if len(month_labels) >= 2:
+                sel_start, sel_end = st.select_slider(
+                    "Date Visited", options=month_labels,
+                    value=(month_labels[0], month_labels[-1]), key="rehab_dates"
+                )
+                filter_start = pd.to_datetime(sel_start)
+                filter_end = pd.to_datetime(sel_end) + pd.offsets.MonthEnd(0)
             else:
-                date_range = None
+                filter_start, filter_end = valid_dates.min(), valid_dates.max()
+        else:
+            filter_start = filter_end = None
+
+    st.markdown("<div style='margin: 0.25rem 0;'></div>", unsafe_allow_html=True)
 
     # Apply filters
     if selected_addrs:
         rehab = rehab[rehab["property_address"].isin(selected_addrs)]
-    if date_range and len(date_range) == 2:
-        rehab = rehab[rehab["date_visited"].dt.date.between(date_range[0], date_range[1])]
+    if filter_start and filter_end:
+        rehab = rehab[rehab["date_visited"].between(filter_start, filter_end)]
 
     # ── Per-property aggregates ──
     totals = rehab.groupby("property_address")["amount_num"].sum().reset_index(name="total_cost")
@@ -1275,7 +1281,7 @@ with tab3:
         has_both & props["all_in_cost"].gt(0))
     props["implied_margin"] = props["net_profit"]
 
-    # ── Fill KPI cards into top container ──
+    # ── KPI cards ──
     jotforms_count = props["property_address"].nunique()
     avg_total = props["total_cost"].mean() if not props.empty else 0
     avg_reno = props["Renovation"].mean() if not props.empty else 0
@@ -1288,23 +1294,25 @@ with tab3:
         "Average After Repair Value (ARV / list price) across all walked properties.",
         "Average implied profit margin: ARV minus purchase price minus total rehab cost.",
     ]
-    with kpi_container:
-        rk1, rk2, rk3, rk4, rk5 = st.columns(5)
-        for _col, label, value, tip in zip(
-            [rk1, rk2, rk3, rk4, rk5],
-            ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
-            [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
-            rehab_kpi_tooltips,
-        ):
-            _col.markdown(
-                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
-                f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
-                f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    rk1, rk2, rk3, rk4, rk5 = st.columns(5)
+    for _col, label, value, tip in zip(
+        [rk1, rk2, rk3, rk4, rk5],
+        ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
+        [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
+        rehab_kpi_tooltips,
+    ):
+        _col.markdown(
+            f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
+            f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
+            f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Cost Breakdown donut ──
+    _, chart_col, _ = st.columns([1, 3, 1])
     with chart_col:
         st.markdown('<p class="chart-title">Avg Cost Breakdown per Property</p>', unsafe_allow_html=True)
         if not rehab.empty:
