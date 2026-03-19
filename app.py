@@ -947,3 +947,63 @@ with tab2:
                 ("Total Leads", "#a0926c"), ("Purchases", "#7a9a6d")
             ])
 
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 4 ──
+    r4c1, _ = st.columns(2)
+
+    # 7) Lead Conversion by Quarter
+    with r4c1:
+        st.markdown('<p class="chart-title">Lead Conversion by Quarter</p>', unsafe_allow_html=True)
+        # Build last 4 quarters
+        def quarter_bounds(year, q):
+            start_month = (q - 1) * 3 + 1
+            end_month = start_month + 2
+            import calendar
+            end_day = calendar.monthrange(year, end_month)[1]
+            return date(year, start_month, 1), date(year, end_month, end_day)
+
+        current_q = (today.month - 1) // 3 + 1
+        quarters = []
+        y, q = current_year, current_q
+        for _ in range(4):
+            quarters.append((y, q))
+            q -= 1
+            if q == 0:
+                q = 4
+                y -= 1
+        quarters.reverse()
+
+        qtr_rows = []
+        all_leads = pd.concat([
+            leads_raw[["created_on", "purchase_price"]],
+            seller_leads_raw[["created_on", "purchase_price"]]
+        ], ignore_index=True)
+        all_leads["created_on"] = pd.to_datetime(all_leads["created_on"], errors="coerce")
+
+        for y, q in quarters:
+            qs, qe = quarter_bounds(y, q)
+            mask = (all_leads["created_on"].dt.date >= qs) & (all_leads["created_on"].dt.date <= min(qe, today))
+            subset = all_leads[mask]
+            total = len(subset)
+            purchased = subset["purchase_price"].notna().sum()
+            conversion = (purchased / total * 100) if total > 0 else 0
+            label = f"Q{q} {y}"
+            qtr_rows.append({"quarter": label, "conversion": round(conversion, 1), "total": total, "purchased": purchased})
+
+        qdf = pd.DataFrame(qtr_rows)
+        fig = go.Figure(go.Bar(
+            x=qdf["quarter"], y=qdf["conversion"],
+            marker=beveled_marker("#a0926c"),
+            text=[f"{v:.1f}%" for v in qdf["conversion"]], textposition="outside",
+            textfont=dict(size=12),
+            hovertemplate="<b>%{x}</b><br>Conversion: <b>%{text}</b><br>Purchased: <b>%{customdata[0]}</b> of <b>%{customdata[1]}</b> leads<extra></extra>",
+            customdata=qdf[["purchased", "total"]].values,
+        ))
+        fig.update_layout(**CHART_BG, height=340, showlegend=False,
+            yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True,
+                       ticksuffix="%", range=[0, max(qdf["conversion"].max() * 1.3, 5)]),
+            xaxis=dict(title="", tickfont=dict(size=12)),
+            margin=dict(l=10, r=10, t=5, b=30))
+        render_chart(fig, height=380)
+
