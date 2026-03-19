@@ -675,12 +675,14 @@ with tab2:
 </style>
 ''', unsafe_allow_html=True)
 
-    all_ams = sorted(set(
-        list(am_tasks_raw["assigned_to"].dropna().map(normalize_name)) +
-        list(leads_raw["relationship_manager"].dropna().map(normalize_name)) +
-        list(seller_leads_raw["created_by"].dropna().map(normalize_name)) +
-        list(hot_sheet_raw["lead_manager"].dropna().map(normalize_name))
-    ) - {"Unknown"})
+    all_ams = sorted(
+        set(
+            list(am_tasks_raw["assigned_to"].dropna().map(normalize_name)) +
+            list(leads_raw["relationship_manager"].dropna().map(normalize_name)) +
+            list(seller_leads_raw["created_by"].dropna().map(normalize_name)) +
+            list(hot_sheet_raw["lead_manager"].dropna().map(normalize_name))
+        ) & set(PERSON_COLORS.keys()) - {"Unknown"}
+    )
     with am_fil:
         with st.expander("Acquisition Manager", expanded=False):
             prev_all_rm = st.session_state.get("rm_all_prev", True)
