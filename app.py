@@ -1015,7 +1015,7 @@ with tab2:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Row 3 ──
-    r3c1, r3c2, r3c3 = st.columns(3)
+    r3c1, r3c2, r3c3 = st.columns([2, 1, 1])
 
     PIE_COLORS = ["#a0926c", "#7a9a6d", "#c2703e", "#6b8cae", "#c47eb0", "#7eb5c4", "#e8b86d", "#8b7ab5", "#999"]
 
