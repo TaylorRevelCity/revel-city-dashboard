@@ -1308,7 +1308,7 @@ with tab3:
     jotforms_count = props["property_address"].nunique()
     avg_total = props["total_cost"].mean() if not props.empty else 0
     avg_reno = props["Renovation"].mean() if not props.empty else 0
-    avg_arv = props["list_price_arv"].mean() if not props.empty else 0
+    avg_arv = props.loc[props["list_price_arv"].gt(0), "list_price_arv"].mean() if not props.empty else 0
     avg_margin = props["implied_margin"].mean() if not props.empty else 0
     for col, label, value, tip in zip(
         [rk1, rk2, rk3, rk4, rk5],
