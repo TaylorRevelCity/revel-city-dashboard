@@ -925,18 +925,32 @@ with tab2:
 
     # 5) Offers By Week
     with r3c1:
-        st.markdown('<p class="chart-title">Offers By Week</p>', unsafe_allow_html=True)
-        offers = leads[leads["offer_amount"].notna()].copy()
+        st.markdown('<p class="chart-title">Offers By Week (Current Qtr)</p>', unsafe_allow_html=True)
+        cl_offers_qtr = leads[
+            (leads["offer_amount"].notna()) &
+            (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(leads["created_on"], errors="coerce").dt.date <= qtr_end)
+        ][["created_on", "relationship_manager"]].copy()
+        cl_offers_qtr["am"] = cl_offers_qtr["relationship_manager"].fillna("Unknown")
+        sl_offers_qtr = seller_leads_raw[
+            (seller_leads_raw["offer_amount"].notna()) &
+            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date >= qtr_start) &
+            (pd.to_datetime(seller_leads_raw["created_on"], errors="coerce").dt.date <= qtr_end)
+        ][["created_on", "created_by"]].copy()
+        sl_offers_qtr["am"] = sl_offers_qtr["created_by"].fillna("Unknown")
+        offers = pd.concat([
+            cl_offers_qtr[["created_on", "am"]],
+            sl_offers_qtr[["created_on", "am"]]
+        ], ignore_index=True)
         if not offers.empty:
-            offers["week"] = pd.to_datetime(offers["agreement_date"].fillna(offers["created_on"])).dt.to_period("W-SUN").dt.start_time
-            offers["relationship_manager"] = offers["relationship_manager"].fillna("Unknown")
-            off_data = offers.groupby(["week", "relationship_manager"]).size().reset_index(name="count")
+            offers["week"] = pd.to_datetime(offers["created_on"], errors="coerce").dt.to_period("W-SUN").dt.start_time
+            off_data = offers.groupby(["week", "am"]).size().reset_index(name="count")
             fig = go.Figure()
             legend_items = []
-            for person in sorted(off_data["relationship_manager"].unique()):
+            for person in sorted(off_data["am"].unique()):
                 color = PERSON_COLORS.get(person, "#999")
                 legend_items.append((person, color))
-                pdf = off_data[off_data["relationship_manager"] == person]
+                pdf = off_data[off_data["am"] == person]
                 fig.add_trace(go.Bar(
                     x=pdf["week"], y=pdf["count"], name=person,
                     marker=beveled_marker(color),
