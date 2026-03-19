@@ -373,12 +373,20 @@ def load_seller_leads():
 def load_am_tasks():
     return run_query(f"SELECT * FROM `{TABLES['am_tasks']}`")
 
+@st.cache_data(ttl=300)
+def load_am_rehab():
+    return run_query(f"""
+        SELECT *, SAFE_CAST(amount AS FLOAT64) AS amount_num
+        FROM `{TABLES['am_rehab_costs']}`
+    """)
+
 tasks_raw = load_tasks()
 contacts_raw = load_contacts()
 leads_raw = load_connector_leads()
 hot_sheet_raw = load_hot_sheet()
 seller_leads_raw = load_seller_leads()
 am_tasks_raw = load_am_tasks()
+rehab_raw = load_am_rehab()
 
 import base64 as _b64
 with open("assets/Revel City Homebuyers Logo_full color.png", "rb") as _f:
@@ -390,7 +398,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab1, tab2 = st.tabs(["Connector Contacts", "AM KPIs"])
+tab1, tab2, tab3 = st.tabs(["Connector Contacts", "AM KPIs", "AM Rehab"])
 
 with tab1:
     # ═══════════════════════════════════════════════════
@@ -1207,4 +1215,301 @@ with tab2:
                 margin=dict(l=10, r=10, t=5, b=10))
             render_chart(fig, height=380, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
 
+# ═══════════════════════════════════════════════════
+# TAB 3: AM Rehab
+# ═══════════════════════════════════════════════════
+with tab3:
+
+    # ── Data prep ──
+    rehab = rehab_raw.copy()
+    rehab["date_visited"] = pd.to_datetime(rehab["date_visited"], errors="coerce")
+    rehab["property_walker"] = rehab["property_walker"].apply(normalize_name)
+
+    # ── Header + Filters ──
+    rb_ban, rb_fil1, rb_fil2 = st.columns([3, 2, 2])
+    rb_ban.markdown('''<div class="section-banner"><h2>AM Rehab</h2></div>
+<style>
+    div[data-testid="stColumn"]:has(.section-banner) > div {
+        background: #e8eaef !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stColumn"]:has(.section-banner) .section-banner {
+        background: transparent; padding: 0;
+    }
+</style>
+''', unsafe_allow_html=True)
+
+    all_walkers = sorted(rehab["property_walker"].dropna().unique().tolist())
+    with rb_fil1:
+        with st.expander("Acquisition Manager", expanded=False):
+            prev_rw = st.session_state.get("rw_all_prev", True)
+            all_rw = st.checkbox("All", value=True, key="rw_all")
+            if prev_rw and not all_rw:
+                for w in all_walkers: st.session_state[f"rw_{w}"] = False
+            elif not prev_rw and all_rw:
+                for w in all_walkers: st.session_state[f"rw_{w}"] = True
+            st.session_state["rw_all_prev"] = all_rw
+            selected_walkers = []
+            for w in all_walkers:
+                default_w = all_rw if f"rw_{w}" not in st.session_state else st.session_state[f"rw_{w}"]
+                checked_w = st.checkbox(w, value=default_w, key=f"rw_{w}", disabled=all_rw)
+                if all_rw or checked_w:
+                    selected_walkers.append(w)
+
+    reno_levels = sorted(rehab["renovation_level"].dropna().unique().tolist())
+    with rb_fil2:
+        with st.expander("Renovation Level", expanded=False):
+            prev_rl = st.session_state.get("rl_all_prev", True)
+            all_rl = st.checkbox("All", value=True, key="rl_all")
+            if prev_rl and not all_rl:
+                for lvl in reno_levels: st.session_state[f"rl_{lvl}"] = False
+            elif not prev_rl and all_rl:
+                for lvl in reno_levels: st.session_state[f"rl_{lvl}"] = True
+            st.session_state["rl_all_prev"] = all_rl
+            selected_levels = []
+            for lvl in reno_levels:
+                default_rl = all_rl if f"rl_{lvl}" not in st.session_state else st.session_state[f"rl_{lvl}"]
+                checked_rl = st.checkbox(lvl, value=default_rl, key=f"rl_{lvl}", disabled=all_rl)
+                if all_rl or checked_rl:
+                    selected_levels.append(lvl)
+
+    if not all_rw and selected_walkers:
+        rehab = rehab[rehab["property_walker"].isin(selected_walkers)]
+    if not all_rl and selected_levels:
+        rehab = rehab[rehab["renovation_level"].isin(selected_levels)]
+
+    # ── Per-property aggregates ──
+    totals = rehab.groupby("property_address")["amount_num"].sum().reset_index(name="total_cost")
+    cat_totals = rehab.groupby(["property_address", "cost_category"])["amount_num"].sum().unstack(fill_value=0).reset_index()
+    for col in ["Holding", "Misc", "Renovation"]:
+        if col not in cat_totals.columns:
+            cat_totals[col] = 0
+    props = rehab.drop_duplicates("property_address")[
+        ["property_address", "property_walker", "date_visited", "renovation_level",
+         "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num"]
+    ].merge(totals, on="property_address").merge(cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address")
+    props["implied_margin"] = props["list_price_arv"] - props["purchase_price"] - props["total_cost"]
+
+    # ── KPI cards ──
+    rk1, rk2, rk3, rk4, rk5 = st.columns(5)
+    rehab_kpi_tooltips = [
+        "Number of unique properties with a completed Jotform / AM Rehab Calc submitted.",
+        "Average total estimated cost (Holding + Misc + Renovation) across all walked properties.",
+        "Average renovation-only costs (excludes Holding and Misc) across all walked properties.",
+        "Average After Repair Value (ARV / list price) across all walked properties.",
+        "Average implied profit margin: ARV minus purchase price minus total rehab cost.",
+    ]
+    jotforms_count = props["property_address"].nunique()
+    avg_total = props["total_cost"].mean() if not props.empty else 0
+    avg_reno = props["Renovation"].mean() if not props.empty else 0
+    avg_arv = props["list_price_arv"].mean() if not props.empty else 0
+    avg_margin = props["implied_margin"].mean() if not props.empty else 0
+    for col, label, value, tip in zip(
+        [rk1, rk2, rk3, rk4, rk5],
+        ["Jotforms Completed", "Avg Total Rehab Cost", "Avg Renovation Cost", "Avg ARV", "Avg Implied Margin"],
+        [str(jotforms_count), fmt_k(avg_total), fmt_k(avg_reno), fmt_k(avg_arv), fmt_k(avg_margin)],
+        rehab_kpi_tooltips,
+    ):
+        col.markdown(
+            f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
+            f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
+            f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 1 ──
+    rb1c1, rb1c2, rb1c3 = st.columns(3)
+
+    # 1) Total Estimated Cost by Property
+    with rb1c1:
+        st.markdown('<p class="chart-title">Total Estimated Cost by Property</p>', unsafe_allow_html=True)
+        if not props.empty:
+            ps = props.sort_values("total_cost", ascending=True)
+            # Shorten address for display
+            ps["label"] = ps["property_address"].str.split(",").str[0]
+            colors = [PERSON_COLORS.get(w, "#999") for w in ps["property_walker"]]
+            fig = go.Figure(go.Bar(
+                y=ps["label"], x=ps["total_cost"], orientation="h",
+                marker=beveled_marker(colors),
+                text=[fmt_k(v) for v in ps["total_cost"]], textposition="outside",
+                textfont=dict(size=10),
+                hovertemplate="<b>%{y}</b><br>Total Cost: <b>%{text}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(tickfont=dict(size=10), automargin=True),
+                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=10)),
+                margin=dict(l=10, r=60, t=5, b=30))
+            render_chart(fig, height=380)
+
+    # 2) Cost Category Breakdown by Property
+    with rb1c2:
+        st.markdown('<p class="chart-title">Cost Breakdown by Property</p>', unsafe_allow_html=True)
+        if not props.empty:
+            ps2 = props.sort_values("total_cost", ascending=True)
+            ps2["label"] = ps2["property_address"].str.split(",").str[0]
+            fig = go.Figure()
+            for cat, color in [("Renovation", "#c2703e"), ("Misc", "#a0926c"), ("Holding", "#7a9a6d")]:
+                fig.add_trace(go.Bar(
+                    y=ps2["label"], x=ps2[cat], name=cat, orientation="h",
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>%{y}</b><br>" + cat + ": <b>%{x:$,.0f}</b><extra></extra>",
+                ))
+            fig.update_layout(**CHART_BG, barmode="stack", height=340, showlegend=False,
+                yaxis=dict(tickfont=dict(size=10), automargin=True),
+                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=10)),
+                margin=dict(l=10, r=20, t=5, b=30))
+            render_chart(fig, height=380, legend=[("Renovation", "#c2703e"), ("Misc", "#a0926c"), ("Holding", "#7a9a6d")])
+
+    # 3) Renovation Level Distribution
+    with rb1c3:
+        st.markdown('<p class="chart-title">Renovation Level</p>', unsafe_allow_html=True)
+        if not props.empty:
+            rl = props["renovation_level"].fillna("Unknown").value_counts().reset_index()
+            rl.columns = ["level", "count"]
+            RENO_COLORS = {"Light": "#7a9a6d", "Medium": "#a0926c", "Heavy": "#c2703e", "Unknown": "#6b8f9e"}
+            rl_colors = [RENO_COLORS.get(l, "#999") for l in rl["level"]]
+            fig = go.Figure(go.Pie(
+                labels=rl["level"], values=rl["count"],
+                marker=dict(colors=rl_colors, line=dict(color="white", width=2)),
+                textinfo="percent+value", textfont=dict(size=12),
+                hovertemplate="<b>%{label}</b><br>%{value} properties (%{percent})<extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                margin=dict(l=10, r=10, t=5, b=10))
+            render_chart(fig, height=380, legend=list(zip(rl["level"], rl_colors)), legend_position="bottom")
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 2 ──
+    rb2c1, rb2c2, rb2c3 = st.columns(3)
+
+    # 4) Top Renovation Line Items
+    with rb2c1:
+        st.markdown('<p class="chart-title">Avg Cost by Renovation Area</p>', unsafe_allow_html=True)
+        reno_items = rehab[rehab["cost_category"] == "Renovation"].copy()
+        if not reno_items.empty:
+            avg_by_area = reno_items.groupby("area")["amount_num"].mean().reset_index(name="avg_cost")
+            avg_by_area = avg_by_area[avg_by_area["avg_cost"] > 0].sort_values("avg_cost", ascending=True)
+            fig = go.Figure(go.Bar(
+                y=avg_by_area["area"], x=avg_by_area["avg_cost"], orientation="h",
+                marker=beveled_marker("#c2703e"),
+                text=[fmt_k(v) for v in avg_by_area["avg_cost"]], textposition="outside",
+                textfont=dict(size=10),
+                hovertemplate="<b>%{y}</b><br>Avg Cost: <b>%{text}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(tickfont=dict(size=10), automargin=True),
+                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", tickfont=dict(size=10)),
+                margin=dict(l=10, r=60, t=5, b=30))
+            render_chart(fig, height=380)
+
+    # 5) ARV vs All-In Cost
+    with rb2c2:
+        st.markdown('<p class="chart-title">ARV vs All-In Cost by Property</p>', unsafe_allow_html=True)
+        if not props.empty:
+            ps3 = props.sort_values("list_price_arv", ascending=False)
+            ps3["label"] = ps3["property_address"].str.split(",").str[0]
+            ps3["all_in"] = ps3["purchase_price"] + ps3["total_cost"]
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=ps3["label"], y=ps3["list_price_arv"], name="ARV",
+                marker=beveled_marker("#7a9a6d"),
+                text=[fmt_k(v) for v in ps3["list_price_arv"]], textposition="outside",
+                textfont=dict(size=10), width=0.35,
+                hovertemplate="<b>%{x}</b><br>ARV: <b>%{text}</b><extra></extra>",
+            ))
+            fig.add_trace(go.Bar(
+                x=ps3["label"], y=ps3["all_in"], name="All-In Cost",
+                marker=beveled_marker("#c2703e"),
+                text=[fmt_k(v) for v in ps3["all_in"]], textposition="outside",
+                textfont=dict(size=10), width=0.35,
+                hovertemplate="<b>%{x}</b><br>All-In: <b>%{text}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, barmode="group", height=340, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickangle=-20, tickfont=dict(size=10), automargin=True),
+                margin=dict(l=10, r=10, t=5, b=60))
+            render_chart(fig, height=380, legend=[("ARV", "#7a9a6d"), ("All-In Cost", "#c2703e")])
+
+    # 6) Jotforms Completed by AM
+    with rb2c3:
+        st.markdown('<p class="chart-title">Jotforms Completed by AM</p>', unsafe_allow_html=True)
+        if not props.empty:
+            by_walker = props.groupby("property_walker").size().reset_index(name="count").sort_values("count", ascending=False)
+            colors = [PERSON_COLORS.get(w, "#999") for w in by_walker["property_walker"]]
+            fig = go.Figure(go.Bar(
+                x=by_walker["property_walker"], y=by_walker["count"],
+                marker=beveled_marker(colors),
+                text=by_walker["count"], textposition="outside",
+                textfont=dict(size=12),
+                hovertemplate="<b>%{x}</b><br>Jotforms: <b>%{y}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
+                margin=dict(l=10, r=10, t=5, b=60))
+            render_chart(fig, height=380)
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ── Row 3 ──
+    rb3c1, rb3c2 = st.columns(2)
+
+    # 7) Walks by Week
+    with rb3c1:
+        st.markdown('<p class="chart-title">Walks by Week</p>', unsafe_allow_html=True)
+        walks_dated = props.dropna(subset=["date_visited"]).copy()
+        if not walks_dated.empty:
+            walks_dated["week"] = walks_dated["date_visited"].dt.to_period("W-SUN").dt.start_time
+            wk = walks_dated.groupby(["week", "property_walker"]).size().reset_index(name="count")
+            fig = go.Figure()
+            legend_items = []
+            for person in sorted(wk["property_walker"].unique()):
+                color = PERSON_COLORS.get(person, "#999")
+                legend_items.append((person, color))
+                pdf = wk[wk["property_walker"] == person]
+                fig.add_trace(go.Bar(
+                    x=pdf["week"], y=pdf["count"], name=person,
+                    marker=beveled_marker(color),
+                    hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Walks: <b>%{y}</b><extra></extra>",
+                ))
+            x_min = wk["week"].min() - pd.Timedelta(days=4)
+            x_max = wk["week"].max() + pd.Timedelta(days=10)
+            fig.update_layout(**CHART_BG, barmode="stack", height=340, bargap=0.2, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True, dtick=1),
+                xaxis=dict(title="", tickformat="%b %d", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10), range=[x_min, x_max],
+                           dtick=7 * 24 * 60 * 60 * 1000, ticklabelmode="period"),
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380, legend=legend_items)
+
+    # 8) Avg Rehab Cost Over Time
+    with rb3c2:
+        st.markdown('<p class="chart-title">Avg Total Rehab Cost by Month</p>', unsafe_allow_html=True)
+        if not walks_dated.empty:
+            walks_dated["month"] = walks_dated["date_visited"].dt.to_period("M").dt.start_time
+            monthly = walks_dated.groupby("month").agg(
+                avg_cost=("total_cost", "mean"),
+                count=("property_address", "count")
+            ).reset_index()
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=monthly["month"], y=monthly["avg_cost"],
+                marker=beveled_marker("#a0926c"),
+                text=[fmt_k(v) for v in monthly["avg_cost"]], textposition="outside",
+                textfont=dict(size=11),
+                customdata=monthly["count"],
+                hovertemplate="%{x|%b %Y}<br>Avg Cost: <b>%{text}</b><br>Properties: <b>%{customdata}</b><extra></extra>",
+            ))
+            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+                yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
+                xaxis=dict(title="", tickformat="%b %Y", gridcolor="#f0f0f0", zeroline=False,
+                           tickangle=-30, tickfont=dict(size=10), dtick="M1"),
+                margin=dict(l=10, r=10, t=5, b=50))
+            render_chart(fig, height=380)
 
