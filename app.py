@@ -902,7 +902,7 @@ with tab2:
         st.markdown('<p class="chart-title">Offers By Week</p>', unsafe_allow_html=True)
         offers = leads[leads["offer_amount"].notna()].copy()
         if not offers.empty:
-            offers["week"] = pd.to_datetime(offers["agreement_date"].fillna(offers["created_on"])).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            offers["week"] = pd.to_datetime(offers["agreement_date"].fillna(offers["created_on"])).dt.to_period("W-SUN").dt.start_time
             offers["relationship_manager"] = offers["relationship_manager"].fillna("Unknown")
             off_data = offers.groupby(["week", "relationship_manager"]).size().reset_index(name="count")
             fig = go.Figure()
@@ -929,7 +929,7 @@ with tab2:
         st.markdown('<p class="chart-title">Purchase vs Leads</p>', unsafe_allow_html=True)
         pvl = leads.copy()
         if not pvl.empty:
-            pvl["week"] = pd.to_datetime(pvl["created_on"]).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            pvl["week"] = pd.to_datetime(pvl["created_on"]).dt.to_period("W-SUN").dt.start_time
             total_leads = pvl.groupby("week").size().reset_index(name="leads")
             purchases = pvl[pvl["purchase_price"].notna()].groupby("week").size().reset_index(name="purchases")
             merged = total_leads.merge(purchases, on="week", how="left").fillna(0)
