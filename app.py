@@ -362,7 +362,7 @@ with open("assets/Revel City Homebuyers Logo_full color.png", "rb") as _f:
     _logo_b64 = _b64.b64encode(_f.read()).decode()
 st.markdown(
     f'<div style="padding:8px 0 4px 0;">'
-    f'<img src="data:image/png;base64,{_logo_b64}" style="height:56px;">'
+    f'<img src="data:image/png;base64,{_logo_b64}" style="height:80px;">'
     f'</div>',
     unsafe_allow_html=True,
 )
