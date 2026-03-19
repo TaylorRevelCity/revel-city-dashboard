@@ -334,11 +334,16 @@ def load_hot_sheet():
 def load_seller_leads():
     return run_query(f"SELECT * FROM `{TABLES['seller_leads']}`")
 
+@st.cache_data(ttl=300)
+def load_am_tasks():
+    return run_query(f"SELECT * FROM `{TABLES['am_tasks']}`")
+
 tasks_raw = load_tasks()
 contacts_raw = load_contacts()
 leads_raw = load_connector_leads()
 hot_sheet_raw = load_hot_sheet()
 seller_leads_raw = load_seller_leads()
+am_tasks_raw = load_am_tasks()
 
 tab1, tab2 = st.tabs(["Connector Dashboard", "AM KPIs"])
 
@@ -778,17 +783,17 @@ with tab2:
     # 1) Properties Walked By Week
     with r1c1:
         st.markdown('<p class="chart-title">Properties Walked By Week</p>', unsafe_allow_html=True)
-        walked = leads[leads["date_walked"].notna()].copy()
+        walked = am_tasks_raw[am_tasks_raw["follow_up_type"] == "Property Walk"].copy()
         if not walked.empty:
-            walked["week"] = pd.to_datetime(walked["date_walked"]).dt.to_period("W-SUN").apply(lambda p: p.start_time)
-            walked["property_walker"] = walked["property_walker"].fillna("Unknown")
-            wk_data = walked.groupby(["week", "property_walker"]).size().reset_index(name="count")
+            walked["week"] = pd.to_datetime(walked["due_date"]).dt.to_period("W-SUN").apply(lambda p: p.start_time)
+            walked["assigned_to"] = walked["assigned_to"].fillna("Unknown")
+            wk_data = walked.groupby(["week", "assigned_to"]).size().reset_index(name="count")
             fig = go.Figure()
             legend_items = []
-            for person in sorted(wk_data["property_walker"].unique()):
+            for person in sorted(wk_data["assigned_to"].unique()):
                 color = PERSON_COLORS.get(person, "#999")
                 legend_items.append((person, color))
-                pdf = wk_data[wk_data["property_walker"] == person]
+                pdf = wk_data[wk_data["assigned_to"] == person]
                 fig.add_trace(go.Bar(
                     x=pdf["week"], y=pdf["count"], name=person,
                     marker=beveled_marker(color),
@@ -838,13 +843,16 @@ with tab2:
     # 3) Year to Date Properties Walked
     with r2c1:
         st.markdown('<p class="chart-title">Year to Date Properties Walked</p>', unsafe_allow_html=True)
-        ytd_walked = leads[(leads["date_walked"].notna()) & (pd.to_datetime(leads["date_walked"]).dt.year == current_year)].copy()
+        ytd_walked = am_tasks_raw[
+            (am_tasks_raw["follow_up_type"] == "Property Walk") &
+            (pd.to_datetime(am_tasks_raw["due_date"]).dt.year == current_year)
+        ].copy()
         if not ytd_walked.empty:
-            ytd_walked["property_walker"] = ytd_walked["property_walker"].fillna("Unknown")
-            ytd_wk = ytd_walked.groupby("property_walker").size().reset_index(name="count").sort_values("count", ascending=False)
-            colors = [PERSON_COLORS.get(p, "#999") for p in ytd_wk["property_walker"]]
+            ytd_walked["assigned_to"] = ytd_walked["assigned_to"].fillna("Unknown")
+            ytd_wk = ytd_walked.groupby("assigned_to").size().reset_index(name="count").sort_values("count", ascending=False)
+            colors = [PERSON_COLORS.get(p, "#999") for p in ytd_wk["assigned_to"]]
             fig = go.Figure(go.Bar(
-                x=ytd_wk["property_walker"], y=ytd_wk["count"],
+                x=ytd_wk["assigned_to"], y=ytd_wk["count"],
                 marker=beveled_marker(colors),
                 text=ytd_wk["count"], textposition="outside",
                 textfont=dict(size=12),

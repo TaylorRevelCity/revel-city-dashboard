@@ -12,6 +12,7 @@ TABLES = {
     "connector_leads": f"{PROJECT_ID}.AcquisitionManagement.ConnectorLeads",
     "hot_sheet": f"{PROJECT_ID}.AcquisitionManagement.HotSheet",
     "seller_leads": f"{PROJECT_ID}.AcquisitionManagement.SellerLeads",
+    "am_tasks": f"{PROJECT_ID}.AcquisitionManagement.AMTasks",
 }
 
 
