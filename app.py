@@ -1118,6 +1118,7 @@ with tab2:
             leads_raw["potential_exit"].dropna(),
             seller_leads_raw["potential_exit"].dropna()
         ], ignore_index=True)
+        exit_all = exit_all.str.strip().str.title()
         exit_counts = exit_all.value_counts().reset_index()
         exit_counts.columns = ["strategy", "count"]
         if not exit_counts.empty:
@@ -1139,6 +1140,7 @@ with tab2:
             leads_raw["closed_lost_detail"].dropna(),
             seller_leads_raw["closed_lost_detail"].dropna()
         ], ignore_index=True)
+        lost_all = lost_all.str.strip().str.title()
         lost_counts = lost_all.value_counts().reset_index()
         lost_counts.columns = ["reason", "count"]
         if not lost_counts.empty:
@@ -1149,8 +1151,8 @@ with tab2:
                 textinfo="percent", textfont=dict(size=11),
                 hovertemplate="<b>%{label}</b><br>%{value} leads (%{percent})<extra></extra>",
             ))
-            fig.update_layout(**CHART_BG, height=340, showlegend=False,
+            fig.update_layout(**CHART_BG, height=300, showlegend=False,
                 margin=dict(l=10, r=10, t=5, b=10))
-            render_chart(fig, height=380, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
+            render_chart(fig, height=420, legend=list(zip(lost_counts["reason"], colors)), legend_position="bottom")
 
 
