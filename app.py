@@ -25,6 +25,29 @@ st.markdown("""
         text-align: center; margin-bottom: 0; padding: 0;
     }
     #MainMenu, footer, header { visibility: hidden; }
+    .kpi-card { position: relative; cursor: default; }
+    .kpi-card::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(28,28,38,0.95);
+        color: #f0f0f0;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        line-height: 1.5;
+        white-space: normal;
+        width: 240px;
+        text-align: left;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .kpi-card:hover::after { opacity: 1; }
     /* Tighten spacing around charts */
     .stPlotlyChart { margin-top: -10px; }
     /* White background for columns */
@@ -795,15 +818,21 @@ with tab2:
 
     # ── KPI cards row ──
     kc1, kc2, kc3, kc4, kc5 = st.columns(5)
-    for col, label, value in [
-        (kc1, "Future Projected Profit", fmt_k(future_profit)),
-        (kc2, "Projected Year Profit/Deal", fmt_k(ytd_profit_per_deal if pd.notna(ytd_profit_per_deal) else 0)),
-        (kc3, "Offer to Ask", f"{offer_to_ask:.1f}%"),
-        (kc4, "Purchase to Ask", f"{purchase_to_ask:.1f}%"),
-        (kc5, "Lead Conversion (Qtr)", f"{lead_conversion:.1f}%"),
-    ]:
+    kpi_tooltips = [
+        "Sum of projected profit for all active Hot Sheet properties (status: Under Contract, Under Renovation, or List on Market).",
+        f"Average projected profit per deal for properties closing in {current_year}, based on Hot Sheet closing dates (shifted +3 months for fiscal year).",
+        f"Average offer amount ÷ asking price for all leads with both fields filled in, created in {current_year}.",
+        f"Average purchase price ÷ asking price for all leads with both fields filled in, created in {current_year}.",
+        f"% of leads created this quarter (Q{(today.month-1)//3+1} {current_year}) that resulted in a purchase price being set.",
+    ]
+    for col, label, value, tip in zip(
+        [kc1, kc2, kc3, kc4, kc5],
+        ["Future Projected Profit", "Projected Year Profit/Deal", "Offer to Ask", "Purchase to Ask", "Lead Conversion (Qtr)"],
+        [fmt_k(future_profit), fmt_k(ytd_profit_per_deal if pd.notna(ytd_profit_per_deal) else 0), f"{offer_to_ask:.1f}%", f"{purchase_to_ask:.1f}%", f"{lead_conversion:.1f}%"],
+        kpi_tooltips,
+    ):
         col.markdown(
-            f'<div style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
+            f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:12px;text-align:center;">'
             f'<div style="font-size:0.75rem;color:#666;">{label}</div>'
             f'<div style="font-size:1.5rem;font-weight:700;color:#1a1a2e;">{value}</div>'
             f'</div>',
