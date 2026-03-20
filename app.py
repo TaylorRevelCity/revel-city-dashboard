@@ -1494,7 +1494,7 @@ with tab3:
         gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
         gb2.configure_column("_cat_total", hide=True)
-        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=112)
+        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=90)
         gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=60)
         gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=52)
         gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=56)
