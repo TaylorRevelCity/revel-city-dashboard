@@ -1495,11 +1495,12 @@ with tab3:
                              minWidth=140)
         gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130)
         gb2.configure_grid_options(
-            suppressAutoGroupColumn=True,
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
         )
-        AgGrid(tbl, gridOptions=gb2.build(), height=500,
+        go = gb2.build()
+        go["suppressAutoGroupColumn"] = True   # must set directly — configure_grid_options doesn't apply it
+        AgGrid(tbl, gridOptions=go, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False)
 
