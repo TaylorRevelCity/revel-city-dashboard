@@ -1507,14 +1507,26 @@ with tab3:
                              cellRenderer="agGroupCellRenderer",
                              cellRendererParams={"suppressCount": True, "innerRenderer": inner_allin},
                              minWidth=120)
-        # Cost Category: blank on group rows, shows category on leaf rows
-        gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130)
+        # Cost Category: hidden until a group is expanded
+        gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130, hide=True)
         # Total Cost: shows property total on group rows, cat amount on leaf rows
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
                              cellRenderer=r_total, minWidth=120)
+        toggle_cat_col = JsCode("""function(params) {
+            var anyExpanded = false;
+            params.api.forEachNode(function(node) {
+                if (node.group && node.expanded) anyExpanded = true;
+            });
+            if (params.api.setColumnsVisible) {
+                params.api.setColumnsVisible(['Cost Category'], anyExpanded);
+            } else if (params.columnApi) {
+                params.columnApi.setColumnVisible('Cost Category', anyExpanded);
+            }
+        }""")
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
+            onRowGroupOpened=toggle_cat_col,
         )
         go = gb2.build()
         go["suppressAutoGroupColumn"] = True   # must set directly — configure_grid_options doesn't apply it
