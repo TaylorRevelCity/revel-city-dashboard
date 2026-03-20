@@ -1461,21 +1461,15 @@ with tab3:
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: AG Grid chevron icon + total on group rows (clickable), cat amount on leaf rows
+        # Total Cost: chevron + total on group rows (clickable), cat amount on leaf rows
         r_total  = JsCode("""function(p){
-            var el=document.createElement('span');
             if(p.node.group){
-                var icon=document.createElement('span');
-                icon.className=p.node.expanded?'ag-icon ag-icon-tree-open':'ag-icon ag-icon-tree-closed';
-                icon.style.marginRight='4px';
-                el.appendChild(icon);
+                var icon=p.node.expanded?'⌄ ':'› ';
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
-                el.appendChild(document.createTextNode(v!=null?'$'+Math.round(v).toLocaleString():''));
-            } else {
-                var c=p.data&&p.data['_cat_total'];
-                el.textContent=c!=null?'$'+Math.round(c).toLocaleString():'';
+                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
-            return el;
+            var c=p.data&&p.data['_cat_total'];
+            return c!=null?'$'+Math.round(c).toLocaleString():'';
         }""")
 
         toggle_cat_col = JsCode("""function(params) {
