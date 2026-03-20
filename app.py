@@ -1447,6 +1447,8 @@ with tab3:
             "cost_category":    "Cost Category",
             "cat_total":        "_cat_total",  # hidden helper
         })
+        # Display-only address column (plain text, no expand arrow)
+        tbl["_addr"] = tbl["Property Address"]
 
         # Property-level renderers: blank on leaf rows, formatted on group rows
         r_dollar = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '';return '$'+Math.round(p.value).toLocaleString();}")
@@ -1471,7 +1473,9 @@ with tab3:
 
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_default_column(resizable=True, sortable=True, filter=True)
-        gb2.configure_column("Property Address", rowGroup=True, hide=False, pinned="left", minWidth=220,
+        gb2.configure_column("Property Address", rowGroup=True, hide=True)
+        gb2.configure_column("_addr",      aggFunc="first", headerName="Property Address",
+                             pinned="left", minWidth=220,
                              cellRenderer=JsCode("function(p){if(!p.node.group)return '';return p.value||'';}"))
         gb2.configure_column("_cat_total", hide=True)
         gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   minWidth=140)
