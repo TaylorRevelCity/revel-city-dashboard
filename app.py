@@ -1453,8 +1453,8 @@ with tab3:
         tbl = tbl[[
             "Property Address", "_addr", "_cat_total",
             "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
-            "CoC %", "Net Profit", "ARV", "Buy Price",
-            "All-In", "Cost Category", "Total Cost",
+            "CoC %", "Net Profit", "ARV", "Buy Price", "All-In",
+            "Cost Category", "Total Cost",
         ]]
 
         # Property-level renderers: blank on leaf rows, formatted on group rows
@@ -1495,23 +1495,24 @@ with tab3:
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=100)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=105)
         # All-In: expand icon lives here (like the reference screenshot)
-        inner_allin = JsCode("""function(p){
-            if(p.node.group){
-                var v=p.node.aggData&&p.node.aggData['All-In'];
-                return v!=null?'$'+Math.round(v).toLocaleString():'';
-            }
-            return '';
-        }""")
         gb2.configure_column("All-In",    aggFunc="first", type=["numericColumn"],
-                             showRowGroup="Property Address",
-                             cellRenderer="agGroupCellRenderer",
-                             cellRendererParams={"suppressCount": True, "innerRenderer": inner_allin},
-                             minWidth=120)
+                             cellRenderer=r_dollar, minWidth=100)
         # Cost Category: hidden until a group is expanded
         gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130, hide=True)
-        # Total Cost: shows property total on group rows, cat amount on leaf rows
+        # Total Cost: expand arrow here; shows total on group rows, cat amount on leaf rows
+        inner_total_cost = JsCode("""function(p){
+            if(p.node.group){
+                var v=p.node.aggData&&p.node.aggData['Total Cost'];
+                return v!=null?'$'+Math.round(v).toLocaleString():'';
+            }
+            var c=p.data&&p.data['_cat_total'];
+            return c!=null?'$'+Math.round(c).toLocaleString():'';
+        }""")
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_total, minWidth=120)
+                             showRowGroup="Property Address",
+                             cellRenderer="agGroupCellRenderer",
+                             cellRendererParams={"suppressCount": True, "innerRenderer": inner_total_cost},
+                             minWidth=130)
         toggle_cat_col = JsCode("""function(params) {
             var anyExpanded = false;
             params.api.forEachNode(function(node) {
