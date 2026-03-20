@@ -1289,7 +1289,7 @@ with tab3:
     avg_margin = props["implied_margin"].mean() if not props.empty else 0
     avg_coc = props["coc_return"].mean() if not props.empty else None
     valid_sf = props[props["above_grade_sqft"].gt(0)]
-    cost_per_sf = (valid_sf["total_cost"] / valid_sf["above_grade_sqft"]).mean() if not valid_sf.empty else None
+    cost_per_sf = (valid_sf["Renovation"] / valid_sf["above_grade_sqft"]).mean() if not valid_sf.empty else None
     valid_agg = props[has_both & props["all_in_cost"].gt(0)]
     total_coc = valid_agg["net_profit"].sum() / valid_agg["all_in_cost"].sum() if not valid_agg.empty else None
 
@@ -1303,7 +1303,7 @@ with tab3:
         ("Avg ARV",              fmt_k(avg_arv),            "Average After Repair Value (ARV / list price) across properties where ARV was entered."),
         ("Avg Implied Margin",   fmt_k(avg_margin),         "Average implied profit margin: ARV minus purchase price minus total rehab cost."),
         ("Avg CoC Return",       fmt_pct_kpi(avg_coc),      "Average Cash-on-Cash Return per property: Net Profit / All-In Cost. Only includes properties where both ARV and purchase price are entered."),
-        ("Cost per Sq Ft",       f"${cost_per_sf:,.2f}" if cost_per_sf else "—", "Average total rehab cost divided by above-grade square footage."),
+        ("Cost per Sq Ft",       f"${cost_per_sf:,.2f}" if cost_per_sf else "—", "Average renovation cost divided by above-grade square footage."),
         ("Total CoC Return",     fmt_pct_kpi(total_coc),   "Aggregate Cash-on-Cash Return: total net profit across all properties divided by total all-in cost."),
     ]
 
