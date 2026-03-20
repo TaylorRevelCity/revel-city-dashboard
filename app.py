@@ -1463,15 +1463,19 @@ with tab3:
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
         # Total Cost: AG Grid chevron icon + total on group rows (clickable), cat amount on leaf rows
         r_total  = JsCode("""function(p){
+            var el=document.createElement('span');
             if(p.node.group){
-                var icon=p.node.expanded
-                    ?'<span class="ag-icon ag-icon-tree-open" style="margin-right:4px"></span>'
-                    :'<span class="ag-icon ag-icon-tree-closed" style="margin-right:4px"></span>';
+                var icon=document.createElement('span');
+                icon.className=p.node.expanded?'ag-icon ag-icon-tree-open':'ag-icon ag-icon-tree-closed';
+                icon.style.marginRight='4px';
+                el.appendChild(icon);
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
-                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
+                el.appendChild(document.createTextNode(v!=null?'$'+Math.round(v).toLocaleString():''));
+            } else {
+                var c=p.data&&p.data['_cat_total'];
+                el.textContent=c!=null?'$'+Math.round(c).toLocaleString():'';
             }
-            var c=p.data&&p.data['_cat_total'];
-            return c!=null?'$'+Math.round(c).toLocaleString():'';
+            return el;
         }""")
 
         toggle_cat_col = JsCode("""function(params) {
