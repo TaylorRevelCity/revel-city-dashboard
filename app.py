@@ -1500,10 +1500,10 @@ with tab3:
         gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=20)
         gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=20)
         gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], cellRenderer=r_pct,    width=20)
-        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=88)
-        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=82)
-        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=85)
-        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=80)
+        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
+        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
+        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
+        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
         gb2.configure_column("Cost Category", cellRenderer=r_cat, width=115, hide=True)
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
                              cellRenderer=r_total, width=105,
