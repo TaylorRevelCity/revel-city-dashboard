@@ -1482,5 +1482,6 @@ with tab3:
         )
         gb2.configure_default_column(resizable=True, sortable=True, filter=True)
         AgGrid(tbl, gridOptions=gb2.build(), height=500,
-               allow_unsafe_jscode=True, theme="alpine", fit_columns_on_grid_load=False)
+               allow_unsafe_jscode=True, enable_enterprise_modules=True,
+               theme="alpine", fit_columns_on_grid_load=False)
 
