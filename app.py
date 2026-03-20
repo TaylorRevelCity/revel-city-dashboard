@@ -1461,10 +1461,10 @@ with tab3:
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: chevron + total on group rows (clickable), cat amount on leaf rows
+        # Total Cost: arrow + total on group rows (clickable), cat amount on leaf rows
         r_total  = JsCode("""function(p){
             if(p.node.group){
-                var icon=p.node.expanded?'⌄ ':'› ';
+                var icon=p.node.expanded?'▼  ':'▶  ';
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
                 return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
@@ -1507,7 +1507,7 @@ with tab3:
         gb2.configure_column("Cost Category", cellRenderer=r_cat, width=125, hide=True)
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
                              cellRenderer=r_total, width=118,
-                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer'};return {};}"))
+                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer',fontWeight:'600',fontSize:'15px'};return {};}"))
         plain_addr = JsCode("function(p){return p.value||'';}")
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
