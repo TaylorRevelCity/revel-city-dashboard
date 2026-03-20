@@ -1479,26 +1479,24 @@ with tab3:
         }""")
 
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
-        gb2.configure_default_column(resizable=True, sortable=True, filter=True)
+        gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
         gb2.configure_column("_addr",      aggFunc="first", headerName="Property Address",
-                             pinned="left", minWidth=220,
+                             pinned="left", width=180,
                              cellRenderer=JsCode("function(p){if(!p.node.group)return '';return p.value||'';}"))
         gb2.configure_column("_cat_total", hide=True)
-        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   minWidth=140)
-        gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   minWidth=90)
-        gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    minWidth=80, suppressMenu=True, filter=False)
-        gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    minWidth=80, suppressMenu=True, filter=False)
-        gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    minWidth=80, suppressMenu=True, filter=False)
-        gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], cellRenderer=r_pct,    minWidth=90)
-        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=110)
-        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=100)
-        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=105)
-        # All-In: expand icon lives here (like the reference screenshot)
-        gb2.configure_column("All-In",    aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_dollar, minWidth=100)
+        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=130)
+        gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=75)
+        gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=60)
+        gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=65)
+        gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=60)
+        gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], cellRenderer=r_pct,    width=75)
+        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
+        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=95)
+        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=95)
+        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=95)
         # Cost Category: hidden until a group is expanded
-        gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130, hide=True)
+        gb2.configure_column("Cost Category", cellRenderer=r_cat, width=120, hide=True)
         # Total Cost: expand arrow here; shows total on group rows, cat amount on leaf rows
         inner_total_cost = JsCode("""function(p){
             if(p.node.group){
