@@ -1229,6 +1229,9 @@ with tab3:
     rehab["date_visited"] = pd.to_datetime(rehab["date_visited"], errors="coerce")
     rehab["property_walker"] = rehab["property_walker"].apply(normalize_name)
     rehab["above_grade_sqft"] = pd.to_numeric(rehab["above_grade_sqft"].astype(str).str.replace(",", ""), errors="coerce")
+    rehab["basement_sqft"] = pd.to_numeric(rehab["basement_sqft"].astype(str).str.replace(",", ""), errors="coerce").fillna(0)
+    rehab["total_sqft"] = rehab["above_grade_sqft"].fillna(0) + rehab["basement_sqft"]
+    rehab["total_sqft"] = rehab["total_sqft"].where(rehab["total_sqft"].gt(0))
     rehab["list_price_arv"] = pd.to_numeric(rehab["list_price_arv"], errors="coerce")
     rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
@@ -1294,7 +1297,7 @@ with tab3:
     )
     props = rehab.drop_duplicates("property_address")[
         ["property_address", "property_walker", "date_visited", "renovation_level",
-         "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num", "above_grade_sqft"]
+         "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num", "above_grade_sqft", "total_sqft"]
     ].merge(totals, on="property_address").merge(
         cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address").merge(
         selling_costs, on="property_address", how="left")
@@ -1313,8 +1316,8 @@ with tab3:
     avg_arv = props.loc[props["list_price_arv"].gt(0), "list_price_arv"].mean() if not props.empty else 0
     avg_margin = props["implied_margin"].mean() if not props.empty else 0
     avg_coc = props["coc_return"].mean() if not props.empty else None
-    valid_sf = props[props["above_grade_sqft"].gt(0)]
-    cost_per_sf = (valid_sf["Renovation"] / valid_sf["above_grade_sqft"]).mean() if not valid_sf.empty else None
+    valid_sf = props[props["total_sqft"].gt(0)]
+    cost_per_sf = (valid_sf["Renovation"] / valid_sf["total_sqft"]).mean() if not valid_sf.empty else None
     valid_agg = props[has_both & props["all_in_cost"].gt(0)]
     total_coc = valid_agg["net_profit"].sum() / valid_agg["all_in_cost"].sum() if not valid_agg.empty else None
 
@@ -1412,17 +1415,16 @@ with tab3:
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
         tbl = props[[
-            "property_address", "property_walker", "above_grade_sqft",
+            "property_address", "property_walker", "total_sqft",
             "bedroom_num", "bathroom_num", "holding_days",
             "coc_return", "net_profit", "list_price_arv",
             "purchase_price", "all_in_cost", "total_cost",
         ]].copy()
-        tbl["above_grade_sqft"] = tbl["above_grade_sqft"].where(tbl["above_grade_sqft"].gt(0))
         tbl["coc_return"] = tbl["coc_return"] * 100  # convert to % for display
         tbl = tbl.rename(columns={
             "property_address": "Property Address",
             "property_walker": "Property Walker",
-            "above_grade_sqft": "House Sq Ft",
+            "total_sqft": "House Sq Ft",
             "bedroom_num": "Bed #",
             "bathroom_num": "Bath #",
             "holding_days": "Hold",
