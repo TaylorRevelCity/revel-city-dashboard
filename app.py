@@ -1447,11 +1447,8 @@ with tab3:
             "cost_category":    "Cost Category",
             "cat_total":        "_cat_total",  # hidden helper
         })
-        # Display-only address column (plain text, no expand arrow)
-        tbl["_addr"] = tbl["Property Address"]
-        # Column order: address | walker | ... | All-In (expand) | Cost Category | Total Cost
         tbl = tbl[[
-            "Property Address", "_addr", "_cat_total",
+            "Property Address", "_cat_total",
             "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
             "CoC %", "Net Profit", "ARV", "Buy Price", "All-In",
             "Cost Category", "Total Cost",
@@ -1463,27 +1460,39 @@ with tab3:
         r_sqft   = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return Math.round(p.value).toLocaleString();}")
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
-        # Cost Category: only on leaf rows
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: property total on group row, category amount on leaf row
-        r_total  = JsCode("function(p){if(p.node.group){return p.value==null?'':'$'+Math.round(p.value).toLocaleString();}var c=p.data&&p.data['_cat_total'];return c==null?'':'$'+Math.round(c).toLocaleString();}")
-
-        # innerRenderer for Total Cost: dollar total on group rows, cat amount on leaf rows
-        inner_total = JsCode("""function(p){
+        # Total Cost: ▶/▼ + total on group rows (clickable), cat amount on leaf rows
+        r_total  = JsCode("""function(p){
             if(p.node.group){
+                var icon=p.node.expanded?'▼ ':'▶ ';
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
-                return v!=null?'$'+Math.round(v).toLocaleString():'';
+                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
             var c=p.data&&p.data['_cat_total'];
             return c!=null?'$'+Math.round(c).toLocaleString():'';
         }""")
 
+        toggle_cat_col = JsCode("""function(params) {
+            var anyExpanded = false;
+            params.api.forEachNode(function(node) {
+                if (node.group && node.expanded) anyExpanded = true;
+            });
+            if (params.api.setColumnsVisible) {
+                params.api.setColumnsVisible(['Cost Category'], anyExpanded);
+            } else if (params.columnApi) {
+                params.columnApi.setColumnVisible('Cost Category', anyExpanded);
+            }
+            params.api.refreshCells({columns:['Total Cost'],force:true});
+        }""")
+        on_cell_click = JsCode("""function(e){
+            if(e.column.getColId()==='Total Cost' && e.node.group){
+                e.node.setExpanded(!e.node.expanded);
+            }
+        }""")
+
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
-        gb2.configure_column("_addr",      aggFunc="first", headerName="Property Address",
-                             pinned="left", minWidth=190,
-                             cellRenderer=JsCode("function(p){if(!p.node.group)return '';return p.value||'';}"))
         gb2.configure_column("_cat_total", hide=True)
         gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   minWidth=135)
         gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   minWidth=75)
@@ -1495,41 +1504,23 @@ with tab3:
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=80)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=100)
         gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=88)
-        # Cost Category: hidden until a group is expanded
         gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=125, hide=True)
-        # Total Cost: expand arrow here; shows total on group rows, cat amount on leaf rows
-        inner_total_cost = JsCode("""function(p){
-            if(p.node.group){
-                var v=p.node.aggData&&p.node.aggData['Total Cost'];
-                return v!=null?'$'+Math.round(v).toLocaleString():'';
-            }
-            var c=p.data&&p.data['_cat_total'];
-            return c!=null?'$'+Math.round(c).toLocaleString():'';
-        }""")
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
-                             showRowGroup="Property Address",
-                             cellRenderer="agGroupCellRenderer",
-                             cellRendererParams={"suppressCount": True, "innerRenderer": inner_total_cost},
-                             minWidth=130)
-        toggle_cat_col = JsCode("""function(params) {
-            var anyExpanded = false;
-            params.api.forEachNode(function(node) {
-                if (node.group && node.expanded) anyExpanded = true;
-            });
-            if (params.api.setColumnsVisible) {
-                params.api.setColumnsVisible(['Cost Category'], anyExpanded);
-            } else if (params.columnApi) {
-                params.columnApi.setColumnVisible('Cost Category', anyExpanded);
-            }
-        }""")
+                             cellRenderer=r_total, minWidth=130,
+                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer'};return {};}"))
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
             onRowGroupOpened=toggle_cat_col,
+            onCellClicked=on_cell_click,
+            autoGroupColumnDef={
+                "headerName": "Property Address",
+                "minWidth": 200,
+                "pinned": "left",
+                "cellRendererParams": {"suppressCount": True},
+            },
         )
-        go = gb2.build()
-        go["suppressAutoGroupColumn"] = True   # must set directly — configure_grid_options doesn't apply it
-        AgGrid(tbl, gridOptions=go, height=500,
+        AgGrid(tbl, gridOptions=gb2.build(), height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False)
 
