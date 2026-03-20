@@ -1449,6 +1449,13 @@ with tab3:
         })
         # Display-only address column (plain text, no expand arrow)
         tbl["_addr"] = tbl["Property Address"]
+        # Column order: address | walker | ... | All-In (expand) | Cost Category | Total Cost
+        tbl = tbl[[
+            "Property Address", "_addr", "_cat_total",
+            "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
+            "CoC %", "Net Profit", "ARV", "Buy Price",
+            "All-In", "Cost Category", "Total Cost",
+        ]]
 
         # Property-level renderers: blank on leaf rows, formatted on group rows
         r_dollar = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '';return '$'+Math.round(p.value).toLocaleString();}")
@@ -1487,13 +1494,24 @@ with tab3:
         gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=110)
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=100)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=105)
-        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, minWidth=100)
-        gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
+        # All-In: expand icon lives here (like the reference screenshot)
+        inner_allin = JsCode("""function(p){
+            if(p.node.group){
+                var v=p.node.aggData&&p.node.aggData['All-In'];
+                return v!=null?'$'+Math.round(v).toLocaleString():'';
+            }
+            return '';
+        }""")
+        gb2.configure_column("All-In",    aggFunc="first", type=["numericColumn"],
                              showRowGroup="Property Address",
                              cellRenderer="agGroupCellRenderer",
-                             cellRendererParams={"suppressCount": True, "innerRenderer": inner_total},
-                             minWidth=140)
+                             cellRendererParams={"suppressCount": True, "innerRenderer": inner_allin},
+                             minWidth=120)
+        # Cost Category: blank on group rows, shows category on leaf rows
         gb2.configure_column("Cost Category", cellRenderer=r_cat, minWidth=130)
+        # Total Cost: shows property total on group rows, cat amount on leaf rows
+        gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
+                             cellRenderer=r_total, minWidth=120)
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
