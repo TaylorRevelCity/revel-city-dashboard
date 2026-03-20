@@ -1453,11 +1453,11 @@ with tab3:
         fmt_sqft   = JsCode("function(p){return p.value==null?'—':Math.round(p.value).toLocaleString()}")
         fmt_num    = JsCode("function(p){return p.value==null?'—':p.value}")
 
-        # Cost Category/Total pinned left so they show immediately on expand
+        # Cost Category/Total on the right, next to Total Cost
         tbl = tbl[[
-            "Property Address", "Cost Category", "Category Total",
-            "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
+            "Property Address", "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
             "CoC %", "Net Profit", "ARV", "Buy Price", "All-In", "Total Cost",
+            "Cost Category", "Category Total",
         ]]
 
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
@@ -1474,8 +1474,8 @@ with tab3:
         gb2.configure_column("Buy Price",   aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=105)
         gb2.configure_column("All-In",      aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=100)
         gb2.configure_column("Total Cost",  aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=110)
-        gb2.configure_column("Cost Category",  minWidth=130, pinned="left")
-        gb2.configure_column("Category Total", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=130, pinned="left")
+        gb2.configure_column("Cost Category",  minWidth=130)
+        gb2.configure_column("Category Total", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=130)
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
