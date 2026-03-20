@@ -1491,22 +1491,22 @@ with tab3:
         }""")
 
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
-        gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True)
+        gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True, suppressSizeToFit=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
         gb2.configure_column("_cat_total", hide=True)
-        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=70)
-        gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=20)
-        gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=20)
-        gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=20)
-        gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=20)
-        gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], cellRenderer=r_pct,    width=20)
-        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
-        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
-        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
-        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=40)
-        gb2.configure_column("Cost Category", cellRenderer=r_cat, width=115, hide=True)
+        gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=70, suppressSizeToFit=True)
+        gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=55, suppressSizeToFit=True)
+        gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=50, suppressSizeToFit=True)
+        gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=52, suppressSizeToFit=True)
+        gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=50, suppressSizeToFit=True)
+        gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], cellRenderer=r_pct,    width=62, suppressSizeToFit=True)
+        gb2.configure_column("Net Profit", aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, flex=1)
+        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, flex=1)
+        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, flex=1)
+        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, flex=1)
+        gb2.configure_column("Cost Category", cellRenderer=r_cat, flex=1, hide=True)
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_total, width=105,
+                             cellRenderer=r_total, flex=1,
                              cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer'};return {};}"))
         plain_addr = JsCode("function(p){return p.value||'';}")
         gb2.configure_grid_options(
@@ -1516,7 +1516,7 @@ with tab3:
             onCellClicked=on_cell_click,
             autoGroupColumnDef={
                 "headerName": "Property Address",
-                "width": 120,
+                "flex": 2,
                 "pinned": "left",
                 "cellRenderer": plain_addr,
             },
