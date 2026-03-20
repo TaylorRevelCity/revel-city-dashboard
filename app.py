@@ -1229,11 +1229,21 @@ with tab3:
     rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
     # ── Filters (at top, above KPIs) ──
-    faddr_col, fdate_col = st.columns([1, 2])
+    faddr_col, fam_col, freno_col, fdate_col = st.columns([2, 1, 1, 2])
     with faddr_col:
         all_addrs = sorted(rehab["property_address"].dropna().unique())
         selected_addrs = st.multiselect("Property Address", all_addrs,
                                         placeholder="All properties", key="rehab_addr")
+    with fam_col:
+        all_ams = sorted(rehab["property_walker"].dropna().unique())
+        selected_ams = st.multiselect("Acquisition Manager", all_ams,
+                                      placeholder="All AMs", key="rehab_am")
+    with freno_col:
+        reno_order = ["Light", "Medium", "Heavy", "Rental Grade"]
+        all_reno_levels = [r for r in reno_order if r in rehab["renovation_level"].dropna().unique()]
+        all_reno_levels += sorted(set(rehab["renovation_level"].dropna().unique()) - set(reno_order))
+        selected_reno = st.multiselect("Renovation Level", all_reno_levels,
+                                       placeholder="All levels", key="rehab_reno")
     with fdate_col:
         valid_dates = rehab["date_visited"].dropna()
         if not valid_dates.empty:
@@ -1260,6 +1270,10 @@ with tab3:
     # Apply filters
     if selected_addrs:
         rehab = rehab[rehab["property_address"].isin(selected_addrs)]
+    if selected_ams:
+        rehab = rehab[rehab["property_walker"].isin(selected_ams)]
+    if selected_reno:
+        rehab = rehab[rehab["renovation_level"].isin(selected_reno)]
     if filter_start and filter_end:
         rehab = rehab[rehab["date_visited"].between(filter_start, filter_end)]
 
