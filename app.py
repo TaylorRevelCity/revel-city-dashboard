@@ -1232,6 +1232,9 @@ with tab3:
     rehab["basement_sqft"] = pd.to_numeric(rehab["basement_sqft"].astype(str).str.replace(",", ""), errors="coerce").fillna(0)
     rehab["total_sqft"] = rehab["above_grade_sqft"].fillna(0) + rehab["basement_sqft"]
     rehab["total_sqft"] = rehab["total_sqft"].where(rehab["total_sqft"].gt(0))
+    rehab["bedroom_num"] = pd.to_numeric(rehab["bedroom_num"], errors="coerce")
+    rehab["bathroom_num"] = pd.to_numeric(rehab["bathroom_num"], errors="coerce")
+    rehab["holding_days"] = pd.to_numeric(rehab["holding_days"], errors="coerce")
     rehab["list_price_arv"] = pd.to_numeric(rehab["list_price_arv"], errors="coerce")
     rehab["purchase_price"] = pd.to_numeric(rehab["purchase_price"], errors="coerce")
 
