@@ -1418,18 +1418,12 @@ with tab3:
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
-        # Property address multiselect filter
-        all_addrs = sorted(props["property_address"].dropna().unique().tolist())
-        sel_addrs = st.multiselect("Filter by Property Address", all_addrs, placeholder="All properties")
-        props_tbl = props[props["property_address"].isin(sel_addrs)] if sel_addrs else props
-
         # One row per (property × cost_category) — leaf rows for the group
-        rehab_tbl = rehab[rehab["property_address"].isin(props_tbl["property_address"])]
         cat_long = (
-            rehab_tbl.groupby(["property_address", "cost_category"])["amount_num"]
+            rehab.groupby(["property_address", "cost_category"])["amount_num"]
             .sum().reset_index(name="cat_total")
         )
-        prop_cols_tbl = props_tbl[[
+        prop_cols_tbl = props[[
             "property_address", "property_walker", "total_sqft",
             "bedroom_num", "bathroom_num", "holding_days",
             "coc_return", "net_profit", "list_price_arv",
