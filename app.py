@@ -1455,7 +1455,7 @@ with tab3:
         gb2.configure_column("All In Cost",   type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
         gb2.configure_column("Total Cost",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
         gb2.configure_default_column(resizable=True, sortable=True, filter=True)
-        gb2.configure_grid_options(suppressMovableColumns=False)
+        gb2.configure_grid_options(suppressMovableColumns=False, wrapHeaderText=True, autoHeaderHeight=True)
         AgGrid(tbl, gridOptions=gb2.build(), height=500,
                allow_unsafe_jscode=True, theme="alpine", fit_columns_on_grid_load=False)
 
