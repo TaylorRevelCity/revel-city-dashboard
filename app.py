@@ -1520,6 +1520,10 @@ with tab3:
                 "suppressSizeToFit": True,
                 "pinned": "left",
                 "cellRenderer": plain_addr,
+                "filter": "agSetColumnFilter",
+                "floatingFilter": True,
+                "filterParams": {"buttons": ["reset"]},
+                "suppressMenu": False,
             },
         )
         AgGrid(tbl, gridOptions=gb2.build(), height=500,
