@@ -1269,14 +1269,21 @@ with tab3:
     for _c in ["Holding", "Misc", "Renovation"]:
         if _c not in cat_totals.columns:
             cat_totals[_c] = 0
+    selling_costs = (
+        rehab[rehab["area"].isin(["Selling Commission", "Selling Closing Costs"])]
+        .groupby("property_address")["amount_num"].sum()
+        .reset_index(name="selling_costs")
+    )
     props = rehab.drop_duplicates("property_address")[
         ["property_address", "property_walker", "date_visited", "renovation_level",
          "purchase_price", "list_price_arv", "holding_days", "bedroom_num", "bathroom_num", "above_grade_sqft"]
     ].merge(totals, on="property_address").merge(
-        cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address")
+        cat_totals[["property_address", "Holding", "Misc", "Renovation"]], on="property_address").merge(
+        selling_costs, on="property_address", how="left")
+    props["selling_costs"] = props["selling_costs"].fillna(0)
     has_both = props["list_price_arv"].gt(0) & props["purchase_price"].gt(0)
-    props["all_in_cost"] = props["purchase_price"] + props["total_cost"]
-    props["net_profit"] = (props["list_price_arv"] - props["all_in_cost"]).where(has_both)
+    props["all_in_cost"] = props["purchase_price"] + props["total_cost"] - props["selling_costs"]
+    props["net_profit"] = (props["list_price_arv"] - props["purchase_price"] - props["total_cost"]).where(has_both)
     props["coc_return"] = (props["net_profit"] / props["all_in_cost"]).where(
         has_both & props["all_in_cost"].gt(0))
     props["implied_margin"] = props["net_profit"]
