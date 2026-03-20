@@ -1427,15 +1427,15 @@ with tab3:
         tbl = tbl.rename(columns={
             "property_address": "Property Address",
             "property_walker": "Property Walker",
-            "total_sqft": "House Sq Ft",
-            "bedroom_num": "Bed #",
-            "bathroom_num": "Bath #",
+            "total_sqft": "Sq Ft",
+            "bedroom_num": "Beds",
+            "bathroom_num": "Baths",
             "holding_days": "Hold",
-            "coc_return": "CoC Return",
+            "coc_return": "CoC %",
             "net_profit": "Net Profit",
             "list_price_arv": "ARV",
-            "purchase_price": "Purchase Price",
-            "all_in_cost": "All In Cost",
+            "purchase_price": "Buy Price",
+            "all_in_cost": "All-In",
             "total_cost": "Total Cost",
         })
         fmt_dollar = JsCode("function(p){return p.value==null||p.value===0?'$0':('$'+Math.round(p.value).toLocaleString())}")
@@ -1444,15 +1444,15 @@ with tab3:
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_column("Property Address", minWidth=220, pinned="left")
         gb2.configure_column("Property Walker", minWidth=140)
-        gb2.configure_column("House Sq Ft",   type=["numericColumn"], valueFormatter=fmt_sqft, minWidth=100, width=110)
-        gb2.configure_column("Bed #",         type=["numericColumn"], minWidth=70, width=70)
-        gb2.configure_column("Bath #",        type=["numericColumn"], minWidth=75, width=75)
-        gb2.configure_column("Hold",          type=["numericColumn"], minWidth=65, width=65)
-        gb2.configure_column("CoC Return",    type=["numericColumn"], valueFormatter=fmt_pct, minWidth=100, width=105)
-        gb2.configure_column("Net Profit",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
-        gb2.configure_column("ARV",           type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=110)
-        gb2.configure_column("Purchase Price",type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=130)
-        gb2.configure_column("All In Cost",   type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
+        gb2.configure_column("Sq Ft",     type=["numericColumn"], valueFormatter=fmt_sqft, minWidth=75, width=85)
+        gb2.configure_column("Beds",      type=["numericColumn"], minWidth=60, width=60)
+        gb2.configure_column("Baths",     type=["numericColumn"], minWidth=65, width=65)
+        gb2.configure_column("Hold",      type=["numericColumn"], minWidth=60, width=60)
+        gb2.configure_column("CoC %",     type=["numericColumn"], valueFormatter=fmt_pct, minWidth=80, width=85)
+        gb2.configure_column("Net Profit",type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=110)
+        gb2.configure_column("ARV",       type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=100)
+        gb2.configure_column("Buy Price", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=105)
+        gb2.configure_column("All-In",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=100)
         gb2.configure_column("Total Cost",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
         gb2.configure_default_column(resizable=True, sortable=True, filter=True)
         gb2.configure_grid_options(suppressMovableColumns=False, wrapHeaderText=True, autoHeaderHeight=True)
