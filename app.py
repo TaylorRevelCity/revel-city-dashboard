@@ -1516,7 +1516,7 @@ with tab3:
             onCellClicked=on_cell_click,
             autoGroupColumnDef={
                 "headerName": "Property Address",
-                "width": 185,
+                "width": 155,
                 "pinned": "left",
                 "cellRenderer": plain_addr,
             },
