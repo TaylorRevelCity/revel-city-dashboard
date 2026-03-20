@@ -1461,10 +1461,12 @@ with tab3:
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: ▶/▼ + total on group rows (clickable), cat amount on leaf rows
+        # Total Cost: AG Grid chevron icon + total on group rows (clickable), cat amount on leaf rows
         r_total  = JsCode("""function(p){
             if(p.node.group){
-                var icon=p.node.expanded?'▼ ':'▶ ';
+                var icon=p.node.expanded
+                    ?'<span class="ag-icon ag-icon-tree-open" style="margin-right:4px"></span>'
+                    :'<span class="ag-icon ag-icon-tree-closed" style="margin-right:4px"></span>';
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
                 return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
