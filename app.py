@@ -1417,45 +1417,70 @@ with tab3:
     st.markdown('<p class="chart-title">Property Details</p>', unsafe_allow_html=True)
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
-        tbl = props[[
+
+        # One row per (property × cost_category) so rows are expandable
+        cat_long = (
+            rehab.groupby(["property_address", "cost_category"])["amount_num"]
+            .sum().reset_index(name="cat_total")
+        )
+        prop_cols = props[[
             "property_address", "property_walker", "total_sqft",
             "bedroom_num", "bathroom_num", "holding_days",
             "coc_return", "net_profit", "list_price_arv",
             "purchase_price", "all_in_cost", "total_cost",
         ]].copy()
-        tbl["coc_return"] = tbl["coc_return"] * 100  # convert to % for display
+        prop_cols["coc_return"] = prop_cols["coc_return"] * 100
+        tbl = cat_long.merge(prop_cols, on="property_address")
         tbl = tbl.rename(columns={
             "property_address": "Property Address",
-            "property_walker": "Property Walker",
-            "total_sqft": "Sq Ft",
-            "bedroom_num": "Beds",
-            "bathroom_num": "Baths",
-            "holding_days": "Hold",
-            "coc_return": "CoC %",
-            "net_profit": "Net Profit",
-            "list_price_arv": "ARV",
-            "purchase_price": "Buy Price",
-            "all_in_cost": "All-In",
-            "total_cost": "Total Cost",
+            "property_walker":  "Property Walker",
+            "total_sqft":       "Sq Ft",
+            "bedroom_num":      "Beds",
+            "bathroom_num":     "Baths",
+            "holding_days":     "Hold",
+            "coc_return":       "CoC %",
+            "net_profit":       "Net Profit",
+            "list_price_arv":   "ARV",
+            "purchase_price":   "Buy Price",
+            "all_in_cost":      "All-In",
+            "total_cost":       "Total Cost",
+            "cost_category":    "Cost Category",
+            "cat_total":        "Category Total",
         })
-        fmt_dollar = JsCode("function(p){return p.value==null||p.value===0?'$0':('$'+Math.round(p.value).toLocaleString())}")
-        fmt_pct   = JsCode("function(p){return p.value==null?'—':(p.value.toFixed(2)+'%')}")
-        fmt_sqft  = JsCode("function(p){return p.value==null?'—':Math.round(p.value).toLocaleString()}")
+
+        fmt_dollar = JsCode("function(p){return p.value==null?'':('$'+Math.round(p.value).toLocaleString())}")
+        fmt_pct    = JsCode("function(p){return p.value==null?'—':(p.value.toFixed(2)+'%')}")
+        fmt_sqft   = JsCode("function(p){return p.value==null?'—':Math.round(p.value).toLocaleString()}")
+        fmt_num    = JsCode("function(p){return p.value==null?'—':p.value}")
+
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
-        gb2.configure_column("Property Address", minWidth=220, pinned="left")
-        gb2.configure_column("Property Walker", minWidth=140)
-        gb2.configure_column("Sq Ft",  type=["numericColumn"], valueFormatter=fmt_sqft, minWidth=80, width=90)
-        gb2.configure_column("Beds",   type=["numericColumn"], minWidth=65, width=65, filter=False)
-        gb2.configure_column("Baths",  type=["numericColumn"], minWidth=70, width=70, filter=False)
-        gb2.configure_column("Hold",   type=["numericColumn"], minWidth=65, width=65, filter=False)
-        gb2.configure_column("CoC %",  type=["numericColumn"], valueFormatter=fmt_pct, minWidth=85, width=90)
-        gb2.configure_column("Net Profit",type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=110)
-        gb2.configure_column("ARV",       type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=100)
-        gb2.configure_column("Buy Price", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=105)
-        gb2.configure_column("All-In",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=100)
-        gb2.configure_column("Total Cost",    type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
+        gb2.configure_column("Property Address", rowGroup=True, hide=True)
+        gb2.configure_column("Property Walker",  aggFunc="first", minWidth=140)
+        gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], valueFormatter=fmt_sqft, minWidth=80,  width=90)
+        gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], valueFormatter=fmt_num,  minWidth=65,  width=65,  filter=False)
+        gb2.configure_column("Baths",    aggFunc="first", type=["numericColumn"], valueFormatter=fmt_num,  minWidth=70,  width=70,  filter=False)
+        gb2.configure_column("Hold",     aggFunc="first", type=["numericColumn"], valueFormatter=fmt_num,  minWidth=65,  width=65,  filter=False)
+        gb2.configure_column("CoC %",    aggFunc="first", type=["numericColumn"], valueFormatter=fmt_pct,  minWidth=85,  width=90)
+        gb2.configure_column("Net Profit",aggFunc="first",type=["numericColumn"], valueFormatter=fmt_dollar,minWidth=110)
+        gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar,minWidth=100)
+        gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar,minWidth=105)
+        gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], valueFormatter=fmt_dollar,minWidth=100)
+        gb2.configure_column("Total Cost",aggFunc="first",type=["numericColumn"], valueFormatter=fmt_dollar,minWidth=110)
+        gb2.configure_column("Cost Category", minWidth=120)
+        gb2.configure_column("Category Total", type=["numericColumn"], valueFormatter=fmt_dollar, minWidth=120)
+        gb2.configure_grid_options(
+            groupDefaultExpanded=0,
+            suppressAggFuncInHeader=True,
+            wrapHeaderText=True,
+            autoHeaderHeight=True,
+            autoGroupColumnDef={
+                "headerName": "Property Address",
+                "minWidth": 240,
+                "pinned": "left",
+                "cellRendererParams": {"suppressCount": True},
+            },
+        )
         gb2.configure_default_column(resizable=True, sortable=True, filter=True)
-        gb2.configure_grid_options(suppressMovableColumns=False, wrapHeaderText=True, autoHeaderHeight=True)
         AgGrid(tbl, gridOptions=gb2.build(), height=500,
                allow_unsafe_jscode=True, theme="alpine", fit_columns_on_grid_load=False)
 
