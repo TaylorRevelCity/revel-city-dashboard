@@ -333,6 +333,10 @@ NAME_NORMALIZE = {
     "wesley werner": "Wesley Warner",
     "wes warner": "Wesley Warner",
     "cameron cathcart": "Camron Cathcart",
+    "camron": "Camron Cathcart",
+    "scott patton": "Scotty Patton",
+    "scotty patton": "Scotty Patton",
+    "4115 ninetieth ave.": "Unknown",
 }
 
 def normalize_name(name):
