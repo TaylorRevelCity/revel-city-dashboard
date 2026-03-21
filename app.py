@@ -1459,7 +1459,7 @@ with tab3:
         r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
         # Specific Cost: leaf rows only
         r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Cost Category inner: show name on L2 group rows, blank elsewhere
+        # Cost Category inner: show name on L2 group rows only
         r_cat_inner = JsCode("function(p){if(p.node.group&&p.node.level===1)return p.value||'';return '';}")
         # Total Cost inner: property total on L1, category sum on L2, item amount on leaf
         r_total_inner = JsCode("""function(p){
@@ -1477,6 +1477,19 @@ with tab3:
             return amt!=null?'$'+Math.round(amt).toLocaleString():'';
         }""")
 
+        # Toggle Cost Category visible when any L1 expanded; Specific Cost when any L2 expanded
+        toggle_cols = JsCode("""function(params) {
+            var l1Open = false, l2Open = false;
+            params.api.forEachNode(function(node) {
+                if (node.group && node.expanded) {
+                    if (node.level === 0) l1Open = true;
+                    if (node.level === 1) l2Open = true;
+                }
+            });
+            params.api.setColumnsVisible(['Cost Category'], l1Open);
+            params.api.setColumnsVisible(['Specific Cost'], l2Open);
+        }""")
+
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True, suppressSizeToFit=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
@@ -1484,9 +1497,9 @@ with tab3:
                              showRowGroup="Cost Category",
                              cellRenderer="agGroupCellRenderer",
                              cellRendererParams={"suppressCount": True, "innerRenderer": r_cat_inner},
-                             width=140)
+                             width=140, hide=True)
         gb2.configure_column("_item_amount", hide=True)
-        gb2.configure_column("Specific Cost", cellRenderer=r_area, width=160)
+        gb2.configure_column("Specific Cost", cellRenderer=r_area, width=160, hide=True)
         gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=150)
         gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=82)
         gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=78)
@@ -1506,6 +1519,7 @@ with tab3:
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
+            onRowGroupOpened=toggle_cols,
             autoGroupColumnDef={
                 "headerName": "Property Address",
                 "width": 240,
@@ -1519,6 +1533,6 @@ with tab3:
         AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
-               key="prop_details_v4",
+               key="prop_details_v5",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
