@@ -1418,11 +1418,8 @@ with tab3:
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
-        # One row per (property × cost_category) — leaf rows for the group
-        cat_long = (
-            rehab.groupby(["property_address", "cost_category"])["amount_num"]
-            .sum().reset_index(name="cat_total")
-        )
+        # Individual cost line items as leaf rows (two-level grouping)
+        detail = rehab[["property_address", "cost_category", "area", "amount_num"]].copy()
         prop_cols_tbl = props[[
             "property_address", "property_walker", "total_sqft",
             "bedroom_num", "bathroom_num", "holding_days",
@@ -1430,7 +1427,7 @@ with tab3:
             "purchase_price", "all_in_cost", "total_cost",
         ]].copy()
         prop_cols_tbl["coc_return"] = prop_cols_tbl["coc_return"] * 100
-        tbl = cat_long.merge(prop_cols_tbl, on="property_address")
+        tbl = detail.merge(prop_cols_tbl, on="property_address")
         tbl = tbl.rename(columns={
             "property_address": "Property Address",
             "property_walker":  "Property Walker",
@@ -1445,49 +1442,51 @@ with tab3:
             "all_in_cost":      "All-In",
             "total_cost":       "Total Cost",
             "cost_category":    "Cost Category",
-            "cat_total":        "_cat_total",  # hidden helper
+            "area":             "Specific Cost",
+            "amount_num":       "_item_amount",
         })
         tbl = tbl[[
-            "Property Address", "_cat_total",
+            "Property Address", "Cost Category", "Specific Cost", "_item_amount",
             "Property Walker", "Sq Ft", "Beds", "Baths", "Hold",
-            "CoC %", "Net Profit", "ARV", "Buy Price", "All-In",
-            "Cost Category", "Total Cost",
+            "CoC %", "Net Profit", "ARV", "Buy Price", "All-In", "Total Cost",
         ]]
 
-        # Property-level renderers: blank on leaf rows, formatted on group rows
-        r_dollar = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '';return '$'+Math.round(p.value).toLocaleString();}")
-        r_pct    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return p.value.toFixed(2)+'%';}")
-        r_sqft   = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return Math.round(p.value).toLocaleString();}")
-        r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
-        r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
-        r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # innerRenderer for Total Cost group cell (chevron provided by agGroupCellRenderer)
+        # L1-only renderers: blank on L2 groups and leaf rows
+        r_dollar = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';if(p.value==null)return '';return '$'+Math.round(p.value).toLocaleString();}")
+        r_pct    = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';if(p.value==null)return '—';return p.value.toFixed(2)+'%';}")
+        r_sqft   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';if(p.value==null)return '—';return Math.round(p.value).toLocaleString();}")
+        r_num    = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';if(p.value==null)return '—';return ''+p.value;}")
+        r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
+        # Specific Cost: leaf rows only
+        r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
+        # Cost Category inner: show name on L2 group rows, blank elsewhere
+        r_cat_inner = JsCode("function(p){if(p.node.group&&p.node.level===1)return p.value||'';return '';}")
+        # Total Cost inner: property total on L1, category sum on L2, item amount on leaf
         r_total_inner = JsCode("""function(p){
-            if(p.node.group){
+            if(p.node.level===0&&p.node.group){
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['Total Cost']:null;
                 return v!=null?'$'+Math.round(v).toLocaleString():'';
             }
-            var c=p.data&&p.data['_cat_total'];
-            return c!=null?'$'+Math.round(c).toLocaleString():'';
-        }""")
-
-        toggle_cat_col = JsCode("""function(params) {
-            var anyExpanded = false;
-            params.api.forEachNode(function(node) {
-                if (node.group && node.expanded) anyExpanded = true;
-            });
-            if (params.api.setColumnsVisible) {
-                params.api.setColumnsVisible(['Cost Category'], anyExpanded);
-            } else if (params.columnApi) {
-                params.columnApi.setColumnVisible('Cost Category', anyExpanded);
+            if(p.node.level===1&&p.node.group){
+                var sum=0;
+                if(p.node.allLeafChildren)p.node.allLeafChildren.forEach(function(l){sum+=(l.data['_item_amount']||0);});
+                return '$'+Math.round(sum).toLocaleString();
             }
+            var amt=p.data&&p.data['_item_amount'];
+            return amt!=null?'$'+Math.round(amt).toLocaleString():'';
         }""")
 
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True, suppressSizeToFit=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
-        gb2.configure_column("_cat_total", hide=True)
+        gb2.configure_column("Cost Category", rowGroup=True,
+                             showRowGroup="Cost Category",
+                             cellRenderer="agGroupCellRenderer",
+                             cellRendererParams={"suppressCount": True, "innerRenderer": r_cat_inner},
+                             width=140)
+        gb2.configure_column("_item_amount", hide=True)
+        gb2.configure_column("Specific Cost", cellRenderer=r_area, width=160)
         gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=150)
         gb2.configure_column("Sq Ft",    aggFunc="first", type=["numericColumn"], cellRenderer=r_sqft,   width=82)
         gb2.configure_column("Beds",     aggFunc="first", type=["numericColumn"], cellRenderer=r_num,    width=78)
@@ -1498,30 +1497,28 @@ with tab3:
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=105)
         gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
-        gb2.configure_column("Cost Category", cellRenderer=r_cat, width=125, hide=True)
         gb2.configure_column("Total Cost", type=["numericColumn"],
                              showRowGroup="Property Address",
                              cellRenderer="agGroupCellRenderer",
                              cellRendererParams={"suppressCount": True, "innerRenderer": r_total_inner},
                              width=150,
-                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer',fontWeight:'600'};return {};}"))
+                             cellStyle=JsCode("function(p){if(p.node.group&&p.node.level===0)return {cursor:'pointer',fontWeight:'600'};return {};}"))
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
-            onRowGroupOpened=toggle_cat_col,
             autoGroupColumnDef={
                 "headerName": "Property Address",
                 "width": 240,
                 "suppressSizeToFit": True,
                 "pinned": "left",
                 "cellRendererParams": {"suppressCount": True},
-                "cellRenderer": JsCode("function(p){return p.value||'';}"),
+                "cellRenderer": JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}"),
             },
         )
         go2 = gb2.build()
         AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
-               key="prop_details_v3",
+               key="prop_details_v4",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
