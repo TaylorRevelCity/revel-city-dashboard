@@ -1414,7 +1414,7 @@ with tab3:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Property Detail Table ──
-    st.markdown('<p class="chart-title">Property Details [v3]</p>', unsafe_allow_html=True)
+    st.markdown('<p class="chart-title">Property Details</p>', unsafe_allow_html=True)
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
@@ -1515,6 +1515,7 @@ with tab3:
                 "suppressSizeToFit": True,
                 "pinned": "left",
                 "cellRendererParams": {"suppressCount": True},
+                "cellRenderer": JsCode("function(p){return p.value||'';}"),
             },
         )
         go2 = gb2.build()
