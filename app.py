@@ -1414,7 +1414,7 @@ with tab3:
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
     # ── Property Detail Table ──
-    st.markdown('<p class="chart-title">Property Details</p>', unsafe_allow_html=True)
+    st.markdown('<p class="chart-title">Property Details [v3]</p>', unsafe_allow_html=True)
     if not props.empty:
         from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
@@ -1461,12 +1461,11 @@ with tab3:
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: arrow + total on group rows (clickable), cat amount on leaf rows
+        # Total Cost: total on group rows (clickable to expand), cat amount on leaf rows
         r_total  = JsCode("""function(p){
             if(p.node.group){
-                var icon=p.node.expanded?'▼  ':'▶  ';
                 var v=p.node.aggData&&p.node.aggData['Total Cost'];
-                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
+                return v!=null?'$'+Math.round(v).toLocaleString():'';
             }
             var c=p.data&&p.data['_cat_total'];
             return c!=null?'$'+Math.round(c).toLocaleString():'';
@@ -1507,8 +1506,7 @@ with tab3:
         gb2.configure_column("Cost Category", cellRenderer=r_cat, width=125, hide=True)
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
                              cellRenderer=r_total, width=118,
-                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer',fontWeight:'600',fontSize:'15px'};return {};}"))
-        plain_addr = JsCode("function(p){return p.value||'';}")
+                             cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer',fontWeight:'600'};return {};}"))
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
@@ -1519,11 +1517,13 @@ with tab3:
                 "width": 240,
                 "suppressSizeToFit": True,
                 "pinned": "left",
-                "cellRenderer": plain_addr,
+                "cellRendererParams": {"suppressCount": True},
             },
         )
-        AgGrid(tbl, gridOptions=gb2.build(), height=500,
+        go2 = gb2.build()
+        AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
+               key="prop_details_v2",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
