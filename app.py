@@ -1461,10 +1461,11 @@ with tab3:
         r_num    = JsCode("function(p){if(!p.node.group)return '';if(p.value==null)return '—';return ''+p.value;}")
         r_text   = JsCode("function(p){if(!p.node.group)return '';return p.value||'';}")
         r_cat    = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Total Cost: total on group rows (clickable to expand), cat amount on leaf rows
-        r_total  = JsCode("""function(p){
+        # innerRenderer for Total Cost group cell (chevron provided by agGroupCellRenderer)
+        r_total_inner = JsCode("""function(p){
             if(p.node.group){
-                var v=p.node.aggData&&p.node.aggData['Total Cost'];
+                var leaves=p.node.allLeafChildren;
+                var v=leaves&&leaves.length>0?leaves[0].data['Total Cost']:null;
                 return v!=null?'$'+Math.round(v).toLocaleString():'';
             }
             var c=p.data&&p.data['_cat_total'];
@@ -1480,12 +1481,6 @@ with tab3:
                 params.api.setColumnsVisible(['Cost Category'], anyExpanded);
             } else if (params.columnApi) {
                 params.columnApi.setColumnVisible('Cost Category', anyExpanded);
-            }
-            params.api.refreshCells({columns:['Total Cost'],force:true});
-        }""")
-        on_cell_click = JsCode("""function(e){
-            if(e.column.getColId()==='Total Cost' && e.node.group){
-                e.node.setExpanded(!e.node.expanded);
             }
         }""")
 
@@ -1504,26 +1499,22 @@ with tab3:
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=105)
         gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
         gb2.configure_column("Cost Category", cellRenderer=r_cat, width=125, hide=True)
-        gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_total, width=118,
+        gb2.configure_column("Total Cost", type=["numericColumn"],
+                             showRowGroup="Property Address",
+                             cellRenderer="agGroupCellRenderer",
+                             cellRendererParams={"suppressCount": True, "innerRenderer": r_total_inner},
+                             width=150,
                              cellStyle=JsCode("function(p){if(p.node.group)return {cursor:'pointer',fontWeight:'600'};return {};}"))
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
             onRowGroupOpened=toggle_cat_col,
-            onCellClicked=on_cell_click,
-            autoGroupColumnDef={
-                "headerName": "Property Address",
-                "width": 240,
-                "suppressSizeToFit": True,
-                "pinned": "left",
-                "cellRendererParams": {"suppressCount": True},
-            },
         )
         go2 = gb2.build()
+        go2["suppressAutoGroupColumn"] = True
         AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
-               key="prop_details_v2",
+               key="prop_details_v3",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
