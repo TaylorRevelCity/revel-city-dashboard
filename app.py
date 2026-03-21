@@ -1509,9 +1509,15 @@ with tab3:
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
             onRowGroupOpened=toggle_cat_col,
+            autoGroupColumnDef={
+                "headerName": "Property Address",
+                "width": 240,
+                "suppressSizeToFit": True,
+                "pinned": "left",
+                "cellRendererParams": {"suppressCount": True},
+            },
         )
         go2 = gb2.build()
-        go2["suppressAutoGroupColumn"] = True
         AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
