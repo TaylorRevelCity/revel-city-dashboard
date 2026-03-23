@@ -1464,7 +1464,7 @@ with tab3:
         # All-In: expand icon + dollar on L1 group, blank elsewhere
         r_allin  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
-                var icon=p.node.expanded?'\\u229F ':'\\u229E ';
+                var icon=p.node.expanded?'−  ':'＋  ';
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['All-In']:null;
                 return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
@@ -1474,7 +1474,7 @@ with tab3:
         # Cost Category: expand icon + name on L2 group, blank elsewhere
         r_cat    = JsCode("""function(p){
             if(p.node.group&&p.node.level===1){
-                var icon=p.node.expanded?'\\u229F ':'\\u229E ';
+                var icon=p.node.expanded?'−  ':'＋  ';
                 return icon+(p.node.key||'');
             }
             return '';
