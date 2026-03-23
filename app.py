@@ -1461,15 +1461,16 @@ with tab3:
         r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
         # Specific Cost: leaf rows only
         r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Cost Category: arrow + name on L2 group rows, blank elsewhere
+        # Cost Category: dollar amount on L2 group rows, blank elsewhere
         r_cat    = JsCode("""function(p){
             if(p.node.group&&p.node.level===1){
-                var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
-                return icon+(p.node.key||'');
+                var sum=0;
+                if(p.node.allLeafChildren)p.node.allLeafChildren.forEach(function(l){sum+=(l.data['_item_amount']||0);});
+                return '$'+Math.round(sum).toLocaleString();
             }
             return '';
         }""")
-        # Total Cost: arrow + property total on L1, category sum on L2, item amount on leaf
+        # Total Cost: arrow + total on L1, arrow + category name on L2, item amount on leaf
         r_total  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
                 var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
@@ -1478,9 +1479,8 @@ with tab3:
                 return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
             if(p.node.level===1&&p.node.group){
-                var sum=0;
-                if(p.node.allLeafChildren)p.node.allLeafChildren.forEach(function(l){sum+=(l.data['_item_amount']||0);});
-                return '$'+Math.round(sum).toLocaleString();
+                var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
+                return icon+(p.node.key||'');
             }
             var amt=p.data&&p.data['_item_amount'];
             return amt!=null?'$'+Math.round(amt).toLocaleString():'';
@@ -1499,12 +1499,9 @@ with tab3:
             params.api.setColumnsVisible(['Specific Cost'], l2Open);
             params.api.refreshCells({columns:['Total Cost','Cost Category'],force:true});
         }""")
-        # Click Total Cost to expand L1, Cost Category to expand L2
+        # Click Total Cost to expand at both levels
         on_cell_click = JsCode("""function(e){
-            if(e.column.getColId()==='Total Cost' && e.node.group && e.node.level===0){
-                e.node.setExpanded(!e.node.expanded);
-            }
-            if(e.column.getColId()==='Cost Category' && e.node.group && e.node.level===1){
+            if(e.column.getColId()==='Total Cost' && e.node.group){
                 e.node.setExpanded(!e.node.expanded);
             }
         }""")
