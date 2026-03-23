@@ -1464,7 +1464,7 @@ with tab3:
         # Cost Category: arrow + name on L2 group rows, blank elsewhere
         r_cat    = JsCode("""function(p){
             if(p.node.group&&p.node.level===1){
-                var icon=p.node.expanded?'\\u02C5 ':'\\u203A ';
+                var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
                 return icon+(p.value||'');
             }
             return '';
@@ -1472,7 +1472,7 @@ with tab3:
         # Total Cost: arrow + property total on L1, category sum on L2, item amount on leaf
         r_total  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
-                var icon=p.node.expanded?'\\u02C5 ':'\\u203A ';
+                var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['Total Cost']:null;
                 return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
