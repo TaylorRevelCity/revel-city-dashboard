@@ -1461,13 +1461,12 @@ with tab3:
         r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
         # Specific Cost: leaf rows only
         r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # All-In: expand icon + dollar on L1 group, blank elsewhere
+        # All-In: plain dollar on L1 group, blank elsewhere
         r_allin  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
-                var icon=p.node.expanded?'−  ':'＋  ';
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['All-In']:null;
-                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
+                return v!=null?'$'+Math.round(v).toLocaleString():'';
             }
             return '';
         }""")
@@ -1479,12 +1478,13 @@ with tab3:
             }
             return '';
         }""")
-        # Total Cost: dollar amounts at ALL levels (no arrows)
+        # Total Cost: expand icon on L1 + dollar amounts at ALL levels
         r_total  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
+                var icon=p.node.expanded?'−  ':'＋  ';
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['Total Cost']:null;
-                return v!=null?'$'+Math.round(v).toLocaleString():'';
+                return icon+(v!=null?'$'+Math.round(v).toLocaleString():'');
             }
             if(p.node.level===1&&p.node.group){
                 var sum=0;
@@ -1509,11 +1509,11 @@ with tab3:
             });
             params.api.setColumnsVisible(['Cost Category'], l1Open);
             params.api.setColumnsVisible(['Specific Cost'], l2Open);
-            params.api.refreshCells({columns:['All-In','Cost Category'],force:true});
+            params.api.refreshCells({columns:['Total Cost','Cost Category'],force:true});
         }""")
         # Click All-In to expand L1, Cost Category to expand L2
         on_cell_click = JsCode("""function(e){
-            if(e.column.getColId()==='All-In' && e.node.group && e.node.level===0){
+            if(e.column.getColId()==='Total Cost' && e.node.group && e.node.level===0){
                 e.node.setExpanded(!e.node.expanded);
             }
             if(e.column.getColId()==='Cost Category' && e.node.group && e.node.level===1){
@@ -1538,10 +1538,10 @@ with tab3:
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=105)
         gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_allin, width=130,
-                             cellStyle=JsCode("function(p){if(p.node.group&&p.node.level===0)return {cursor:'pointer',fontWeight:'600'};return {};}"))
+                             cellRenderer=r_allin, width=100)
         gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
-                             cellRenderer=r_total, width=118)
+                             cellRenderer=r_total, width=140,
+                             cellStyle=JsCode("function(p){if(p.node.group&&p.node.level===0)return {cursor:'pointer',fontWeight:'600'};return {};}"))
         plain_addr = JsCode("function(p){if(p.node.level===0&&p.node.group)return p.value||'';return '';}")
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
