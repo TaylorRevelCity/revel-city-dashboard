@@ -1461,16 +1461,20 @@ with tab3:
         r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
         # Specific Cost: leaf rows only
         r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Cost Category: dollar amount on L2 group rows, blank elsewhere
+        # Cost Category: dollar amount on L2 group rows AND leaf rows
         r_cat    = JsCode("""function(p){
             if(p.node.group&&p.node.level===1){
                 var sum=0;
                 if(p.node.allLeafChildren)p.node.allLeafChildren.forEach(function(l){sum+=(l.data['_item_amount']||0);});
                 return '$'+Math.round(sum).toLocaleString();
             }
+            if(!p.node.group){
+                var amt=p.data&&p.data['_item_amount'];
+                return amt!=null?'$'+Math.round(amt).toLocaleString():'';
+            }
             return '';
         }""")
-        # Total Cost: arrow + total on L1, arrow + category name on L2, item amount on leaf
+        # Total Cost: arrow + total on L1, arrow + category name on L2, blank on leaf
         r_total  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
                 var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
@@ -1482,8 +1486,7 @@ with tab3:
                 var icon=p.node.expanded?'\\u25BE  ':'\\u25B8  ';
                 return icon+(p.node.key||'');
             }
-            var amt=p.data&&p.data['_item_amount'];
-            return amt!=null?'$'+Math.round(amt).toLocaleString():'';
+            return '';
         }""")
 
         # Toggle Cost Category when L1 expanded; Specific Cost when L2 expanded
