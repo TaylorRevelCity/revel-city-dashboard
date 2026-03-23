@@ -1407,9 +1407,9 @@ with tab3:
                 marker=dict(colors=slice_colors, line=dict(color="white", width=2)),
                 hovertemplate="<b>%{label}</b><br>Avg: $%{value:,.0f} (%{percent})<extra></extra>",
             ))
-            fig.update_layout(**CHART_BG, height=500, showlegend=False,
-                margin=dict(l=130, r=160, t=30, b=30))
-            render_chart(fig, height=540)
+            fig.update_layout(**CHART_BG, height=560, showlegend=False,
+                margin=dict(l=130, r=160, t=30, b=80))
+            render_chart(fig, height=600)
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
