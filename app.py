@@ -1459,10 +1459,10 @@ with tab3:
         r_text   = JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}")
         # Specific Cost: leaf rows only
         r_area   = JsCode("function(p){if(p.node.group)return '';return p.value||'';}")
-        # Cost Category inner: show name on L2 group rows only
-        r_cat_inner = JsCode("function(p){if(p.node.group&&p.node.level===1)return p.value||'';return '';}")
-        # Total Cost inner: property total on L1, category sum on L2, item amount on leaf
-        r_total_inner = JsCode("""function(p){
+        # Cost Category: show on L2 group rows only
+        r_cat    = JsCode("function(p){if(p.node.group&&p.node.level===1)return p.value||'';return '';}")
+        # Total Cost: property total on L1, category sum on L2, item amount on leaf
+        r_total  = JsCode("""function(p){
             if(p.node.level===0&&p.node.group){
                 var leaves=p.node.allLeafChildren;
                 var v=leaves&&leaves.length>0?leaves[0].data['Total Cost']:null;
@@ -1493,11 +1493,7 @@ with tab3:
         gb2 = GridOptionsBuilder.from_dataframe(tbl)
         gb2.configure_default_column(resizable=True, sortable=True, filter=False, suppressMenu=True, suppressSizeToFit=True)
         gb2.configure_column("Property Address", rowGroup=True, hide=True)
-        gb2.configure_column("Cost Category", rowGroup=True,
-                             showRowGroup="Cost Category",
-                             cellRenderer="agGroupCellRenderer",
-                             cellRendererParams={"suppressCount": True, "innerRenderer": r_cat_inner},
-                             width=140, hide=True)
+        gb2.configure_column("Cost Category", rowGroup=True, cellRenderer=r_cat, width=140, hide=True)
         gb2.configure_column("_item_amount", hide=True)
         gb2.configure_column("Specific Cost", cellRenderer=r_area, width=160, hide=True)
         gb2.configure_column("Property Walker", aggFunc="first", cellRenderer=r_text,   width=150)
@@ -1510,12 +1506,9 @@ with tab3:
         gb2.configure_column("ARV",      aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
         gb2.configure_column("Buy Price",aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=105)
         gb2.configure_column("All-In",   aggFunc="first", type=["numericColumn"], cellRenderer=r_dollar, width=100)
-        gb2.configure_column("Total Cost", type=["numericColumn"],
-                             showRowGroup="Property Address",
-                             cellRenderer="agGroupCellRenderer",
-                             cellRendererParams={"suppressCount": True, "innerRenderer": r_total_inner},
-                             width=150,
-                             cellStyle=JsCode("function(p){if(p.node.group&&p.node.level===0)return {cursor:'pointer',fontWeight:'600'};return {};}"))
+        gb2.configure_column("Total Cost", aggFunc="first", type=["numericColumn"],
+                             cellRenderer=r_total, width=118,
+                             cellStyle=JsCode("function(p){if(p.node.group&&p.node.level===0)return {fontWeight:'600'};return {};}"))
         gb2.configure_grid_options(
             groupDefaultExpanded=0,
             suppressAggFuncInHeader=True,
@@ -1526,13 +1519,12 @@ with tab3:
                 "suppressSizeToFit": True,
                 "pinned": "left",
                 "cellRendererParams": {"suppressCount": True},
-                "cellRenderer": JsCode("function(p){if(!p.node.group||p.node.level!==0)return '';return p.value||'';}"),
             },
         )
         go2 = gb2.build()
         AgGrid(tbl, gridOptions=go2, height=500,
                allow_unsafe_jscode=True, enable_enterprise_modules=True,
                theme="alpine", fit_columns_on_grid_load=False,
-               key="prop_details_v5",
+               key="prop_details_v6",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
