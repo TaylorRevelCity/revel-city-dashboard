@@ -884,7 +884,7 @@ with tab2:
                     hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Count: <b>%{y}</b><extra></extra>",
                 ))
             fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2,
-                          annotation_text="Weekly Goal", annotation_position="top left",
+                          annotation_text="Weekly Goal", annotation_position="top right",
                           annotation_font=dict(color="#7a9a6d", size=11))
             x_min = wk_data["week"].min() - pd.Timedelta(days=4)
             x_max = wk_data["week"].max() + pd.Timedelta(days=10)
@@ -894,7 +894,7 @@ with tab2:
                            tickangle=-30, tickfont=dict(size=10), range=[x_min, x_max],
                            dtick=7 * 24 * 60 * 60 * 1000, ticklabelmode="period"),
                 showlegend=False,
-                margin=dict(l=10, r=10, t=5, b=50))
+                margin=dict(l=10, r=10, t=15, b=50))
             render_chart(fig, height=380, legend=legend_items)
 
     # 2) Future Profit by AM
@@ -928,12 +928,12 @@ with tab2:
                 hovertemplate="<b>%{x}</b><br>Projected Profit: <b>%{text}</b><extra></extra>",
             ))
             fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2,
-                          annotation_text="Profit Goal ($100K)", annotation_position="top right",
+                          annotation_text="Profit Goal ($100K)", annotation_position="top left",
                           annotation_font=dict(color="#7a9a6d", size=11))
             fig.update_layout(**CHART_BG, height=340, showlegend=False,
                 yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
                 xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
-                margin=dict(l=10, r=10, t=5, b=60))
+                margin=dict(l=10, r=10, t=15, b=60))
             render_chart(fig, height=380)
 
     # 3) Year to Date Properties Walked
