@@ -332,10 +332,14 @@ NAME_NORMALIZE = {
     "wes werner": "Wesley Warner",
     "wesley werner": "Wesley Warner",
     "wes warner": "Wesley Warner",
+    "wesley warner": "Wesley Warner",
     "cameron cathcart": "Camron Cathcart",
+    "camron cathcart": "Camron Cathcart",
     "camron": "Camron Cathcart",
+    "cameron": "Camron Cathcart",
     "scott patton": "Scotty Patton",
     "scotty patton": "Scotty Patton",
+    "tony franks": "Tony Franks",
     "4115 ninetieth ave.": "Unknown",
 }
 
