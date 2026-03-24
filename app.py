@@ -883,9 +883,10 @@ with tab2:
                     marker=beveled_marker(color),
                     hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Count: <b>%{y}</b><extra></extra>",
                 ))
-            fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2,
-                          annotation_text="Weekly Goal", annotation_position="top right",
-                          annotation_font=dict(color="#7a9a6d", size=11))
+            fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2)
+            fig.add_annotation(text="Weekly Goal", xref="paper", yref="y",
+                               x=0.5, y=7, showarrow=False, yshift=10,
+                               font=dict(color="#7a9a6d", size=11))
             x_min = wk_data["week"].min() - pd.Timedelta(days=4)
             x_max = wk_data["week"].max() + pd.Timedelta(days=10)
             fig.update_layout(**CHART_BG, barmode="group", height=340, bargap=0.15,
@@ -927,9 +928,10 @@ with tab2:
                 textfont=dict(size=11),
                 hovertemplate="<b>%{x}</b><br>Projected Profit: <b>%{text}</b><extra></extra>",
             ))
-            fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2,
-                          annotation_text="Profit Goal ($100K)", annotation_position="top left",
-                          annotation_font=dict(color="#7a9a6d", size=11))
+            fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2)
+            fig.add_annotation(text="Profit Goal ($100K)", xref="paper", yref="y",
+                               x=0.5, y=100000, showarrow=False, yshift=10,
+                               font=dict(color="#7a9a6d", size=11))
             fig.update_layout(**CHART_BG, height=340, showlegend=False,
                 yaxis=dict(gridcolor="#f0f0f0", title="", zeroline=False, automargin=True),
                 xaxis=dict(title="", tickangle=-20, tickfont=dict(size=11), automargin=True),
