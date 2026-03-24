@@ -884,7 +884,7 @@ with tab2:
                     hovertemplate="<b>" + person + "</b><br>Week of %{x|%b %d, %Y}<br>Count: <b>%{y}</b><extra></extra>",
                 ))
             fig.add_hline(y=7, line_dash="dash", line_color="#7a9a6d", line_width=2)
-            fig.add_annotation(text="Weekly Goal", xref="paper", yref="y",
+            fig.add_annotation(text="<b>Weekly Goal</b>", xref="paper", yref="y",
                                x=0.5, y=7, showarrow=False, yshift=10,
                                font=dict(color="#7a9a6d", size=11))
             x_min = wk_data["week"].min() - pd.Timedelta(days=4)
@@ -929,7 +929,7 @@ with tab2:
                 hovertemplate="<b>%{x}</b><br>Projected Profit: <b>%{text}</b><extra></extra>",
             ))
             fig.add_hline(y=100000, line_dash="dash", line_color="#7a9a6d", line_width=2)
-            fig.add_annotation(text="Profit Goal ($100K)", xref="paper", yref="y",
+            fig.add_annotation(text="<b>Profit Goal ($100K)</b>", xref="paper", yref="y",
                                x=0.5, y=100000, showarrow=False, yshift=10,
                                font=dict(color="#7a9a6d", size=11))
             fig.update_layout(**CHART_BG, height=340, showlegend=False,
