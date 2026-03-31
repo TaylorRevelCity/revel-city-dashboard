@@ -13,8 +13,8 @@ TABLES = {
     "hot_sheet": f"{PROJECT_ID}.AcquisitionManagement.HotSheet",
     "seller_leads": f"{PROJECT_ID}.AcquisitionManagement.SellerLeads",
     "am_tasks": f"{PROJECT_ID}.AcquisitionManagement.AMTasks",
-    "estimated_cost": f"{PROJECT_ID}.DetailRehabCalc.`Estimated Cost`",
-    "quoted_cost": f"{PROJECT_ID}.DetailRehabCalc.`Quoted Cost`",
+    "estimated_cost": f"{PROJECT_ID}.DetailRehabCalc.Estimated Cost",
+    "quoted_cost": f"{PROJECT_ID}.DetailRehabCalc.Quoted Cost",
     "invoice_tracker": f"{PROJECT_ID}.InvoiceData.Invoice_Tracker",
 }
 
