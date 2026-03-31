@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from datetime import date, timedelta
 from utils.bq_client import run_query, TABLES
-from st_keyup import st_keyup
 
 st.set_page_config(page_title="Revel City Dashboard", layout="wide")
 
@@ -1642,49 +1641,16 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        # Selection summary above expander
-        _prev_sel = [s for s in inv_streets if st.session_state.get(f"reno_{s}", True)]
-        if len(_prev_sel) == len(inv_streets) or not _prev_sel:
-            _sel_label = "All Properties"
-        elif len(_prev_sel) <= 3:
-            _sel_label = ", ".join(_prev_sel)
-        else:
-            _sel_label = f"{_prev_sel[0]}, {_prev_sel[1]} +{len(_prev_sel)-2} more"
-        st.markdown(
-            f'<div style="font-size:0.8rem;color:#555;padding:2px 4px;margin-bottom:-8px;">'
-            f'Selected: <b>{_sel_label}</b></div>',
-            unsafe_allow_html=True,
+        selected_props = st.multiselect(
+            "Property",
+            options=inv_streets,
+            default=[],
+            key="reno_props",
+            placeholder="All Properties — type to search...",
         )
-        reno_search = st_keyup("", key="reno_search", placeholder="Type to filter properties...", debounce=300)
-        with st.expander("Property", expanded=False):
-            for s in inv_streets:
-                if f"reno_{s}" not in st.session_state:
-                    st.session_state[f"reno_{s}"] = True
 
-            prev_all_reno = st.session_state.get("reno_all_prev", True)
-            all_reno = st.checkbox("All", value=True, key="reno_all")
-            if prev_all_reno and not all_reno:
-                for s in inv_streets:
-                    st.session_state[f"reno_{s}"] = False
-            elif not prev_all_reno and all_reno:
-                for s in inv_streets:
-                    st.session_state[f"reno_{s}"] = True
-            st.session_state["reno_all_prev"] = all_reno
-
-            visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
-
-            selected_props = []
-            for s in visible_streets:
-                checked = st.checkbox(s, key=f"reno_{s}", disabled=all_reno)
-                if all_reno or checked:
-                    selected_props.append(s)
-            # Keep checked-but-hidden properties in selection
-            for s in inv_streets:
-                if s not in visible_streets and (all_reno or st.session_state.get(f"reno_{s}", False)):
-                    selected_props.append(s)
-
-    # ── filter data ──
-    if selected_props and len(selected_props) < len(inv_streets):
+    # ── filter data (empty = all) ──
+    if selected_props:
         inv_f = inv[inv["street"].isin(selected_props)]
         est_f = est[est["street"].isin(selected_props)]
         quo_f = quo[quo["street"].isin(selected_props)]
