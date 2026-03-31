@@ -1657,11 +1657,19 @@ with tab4:
                     st.session_state[f"reno_{s}"] = True
             st.session_state["reno_all_prev"] = all_reno
 
+            reno_search = st.text_input("Search properties", key="reno_search", placeholder="Type to filter...")
+            visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
+
             selected_props = []
-            for s in inv_streets:
+            for s in visible_streets:
                 checked = st.checkbox(s, key=f"reno_{s}", disabled=all_reno)
                 if all_reno or checked:
                     selected_props.append(s)
+            # Include checked but hidden-by-search properties
+            if reno_search:
+                for s in inv_streets:
+                    if s not in visible_streets and (all_reno or st.session_state.get(f"reno_{s}", False)):
+                        selected_props.append(s)
 
     # ── filter data ──
     if selected_props and len(selected_props) < len(inv_streets):
