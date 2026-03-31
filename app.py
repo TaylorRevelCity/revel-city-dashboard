@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from datetime import date, timedelta
 from utils.bq_client import run_query, TABLES
+from st_keyup import st_keyup
 
 st.set_page_config(page_title="Revel City Dashboard", layout="wide")
 
@@ -1656,7 +1657,7 @@ with tab4:
                     st.session_state[f"reno_{s}"] = True
             st.session_state["reno_all_prev"] = all_reno
 
-            reno_search = st.text_input("Search", key="reno_search", placeholder="Type and press Enter...")
+            reno_search = st_keyup("Search", key="reno_search", placeholder="Type to filter...", debounce=300)
             visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
 
             selected_props = []
