@@ -1641,35 +1641,13 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        with st.expander("Property", expanded=False):
-            # Initialize checkbox state on first run
-            for s in inv_streets:
-                if f"reno_{s}" not in st.session_state:
-                    st.session_state[f"reno_{s}"] = True
-
-            prev_all_reno = st.session_state.get("reno_all_prev", True)
-            all_reno = st.checkbox("All", value=True, key="reno_all")
-            if prev_all_reno and not all_reno:
-                for s in inv_streets:
-                    st.session_state[f"reno_{s}"] = False
-            elif not prev_all_reno and all_reno:
-                for s in inv_streets:
-                    st.session_state[f"reno_{s}"] = True
-            st.session_state["reno_all_prev"] = all_reno
-
-            reno_search = st.text_input("Search properties", key="reno_search", placeholder="Type to filter...")
-            visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
-
-            selected_props = []
-            for s in visible_streets:
-                checked = st.checkbox(s, key=f"reno_{s}", disabled=all_reno)
-                if all_reno or checked:
-                    selected_props.append(s)
-            # Include checked but hidden-by-search properties
-            if reno_search:
-                for s in inv_streets:
-                    if s not in visible_streets and (all_reno or st.session_state.get(f"reno_{s}", False)):
-                        selected_props.append(s)
+        selected_props = st.multiselect(
+            "Property",
+            options=inv_streets,
+            default=inv_streets,
+            key="reno_props",
+            placeholder="Type to search properties...",
+        )
 
     # ── filter data ──
     if selected_props and len(selected_props) < len(inv_streets):
