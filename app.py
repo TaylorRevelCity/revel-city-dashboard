@@ -1640,31 +1640,31 @@ with tab4:
     }
 </style>
 ''', unsafe_allow_html=True)
-    with fil4:
-        # Track previous selection to detect what changed
-        prev_sel = st.session_state.get("reno_prev_sel", ["All Properties"])
+    def _on_prop_change():
+        sel = st.session_state.get("reno_props_v7", [])
+        prev = st.session_state.get("_reno_prev", ["All Properties"])
+        had_all = "All Properties" in prev
+        has_all = "All Properties" in sel
+        indiv = [s for s in sel if s != "All Properties"]
 
+        if has_all and not had_all:
+            # User just clicked "All Properties" → keep only All
+            st.session_state["reno_props_v7"] = ["All Properties"]
+        elif has_all and indiv:
+            # User added an individual while All was selected → remove All
+            st.session_state["reno_props_v7"] = indiv
+
+        st.session_state["_reno_prev"] = list(st.session_state["reno_props_v7"])
+
+    with fil4:
         selected_props = st.multiselect(
             "Property",
             options=["All Properties"] + inv_streets,
             default=["All Properties"],
-            key="reno_props_v6",
+            key="reno_props_v7",
             placeholder="Type to search...",
+            on_change=_on_prop_change,
         )
-
-        # If "All Properties" was just added, clear individual picks
-        if "All Properties" in selected_props and "All Properties" not in prev_sel:
-            st.session_state["reno_props_v6"] = ["All Properties"]
-            st.session_state["reno_prev_sel"] = ["All Properties"]
-            st.rerun()
-        # If an individual property was added while All was selected, remove All
-        elif "All Properties" in selected_props and len(selected_props) > 1:
-            cleaned = [s for s in selected_props if s != "All Properties"]
-            st.session_state["reno_props_v6"] = cleaned
-            st.session_state["reno_prev_sel"] = cleaned
-            st.rerun()
-        else:
-            st.session_state["reno_prev_sel"] = selected_props
 
     # ── filter data ──
     if "All Properties" in selected_props or not selected_props:
