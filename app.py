@@ -1656,18 +1656,18 @@ with tab4:
         hs_f = hs
 
     # ── compute metrics ──
-    actual_total = inv_f["Total_Price"].sum() if not inv_f.empty else 0
-    actual_labor = inv_f.loc[inv_f["Resource"] == "Labor", "Total_Price"].sum()
-    actual_material = inv_f.loc[inv_f["Resource"] == "Material", "Total_Price"].sum()
+    actual_total = float(inv_f["Total_Price"].sum()) if not inv_f.empty else 0.0
+    actual_labor = float(inv_f.loc[inv_f["Resource"] == "Labor", "Total_Price"].sum())
+    actual_material = float(inv_f.loc[inv_f["Resource"] == "Material", "Total_Price"].sum())
 
     est_reno = est_f[est_f["cost_category"] == "Renovation"]
     quo_reno = quo_f[quo_f["cost_category"] == "Renovation"]
 
-    est_reno_total = est_reno["amount"].sum() if not est_reno.empty else 0
-    quo_reno_total = quo_reno["amount_num"].sum() if not quo_reno.empty else 0
+    est_reno_total = float(est_reno["amount"].sum()) if not est_reno.empty else 0.0
+    quo_reno_total = float(quo_reno["amount_num"].sum()) if not quo_reno.empty else 0.0
 
-    est_all = est_f["amount"].sum() if not est_f.empty else 0
-    quo_all = quo_f["amount_num"].sum() if not quo_f.empty else 0
+    est_all = float(est_f["amount"].sum()) if not est_f.empty else 0.0
+    quo_all = float(quo_f["amount_num"].sum()) if not quo_f.empty else 0.0
 
     n_props_inv = inv_f["street"].nunique() if not inv_f.empty else 0
 
@@ -1691,7 +1691,7 @@ with tab4:
     quo_coc = quo_net_profit / (pp + quo_all) if pp and quo_all and quo_net_profit is not None else None
     pct_act_est = actual_total / est_reno_total if est_reno_total else None
     cost_per_sqft = actual_total / sqft if sqft else None
-    outstanding = quo_reno_total - actual_total
+    outstanding = float(quo_reno_total - actual_total)
 
     st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
 
