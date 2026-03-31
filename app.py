@@ -1644,13 +1644,13 @@ with tab4:
         selected_props = st.multiselect(
             "Property",
             options=inv_streets,
-            default=inv_streets,
+            default=[],
             key="reno_props",
-            placeholder="Type to search properties...",
+            placeholder="All Properties — type to search...",
         )
 
-    # ── filter data ──
-    if selected_props and len(selected_props) < len(inv_streets):
+    # ── filter data (empty = all) ──
+    if selected_props:
         inv_f = inv[inv["street"].isin(selected_props)]
         est_f = est[est["street"].isin(selected_props)]
         quo_f = quo[quo["street"].isin(selected_props)]
