@@ -1725,7 +1725,7 @@ with tab4:
         fig_gauge = go.Figure(go.Indicator(
             mode="gauge+number",
             value=actual_total,
-            number=dict(prefix="$", valueformat=",.2s"),
+            number=dict(prefix="$", valueformat=",.0f"),
             gauge=dict(
                 axis=dict(range=[0, gauge_max], tickprefix="$", tickformat=".2s"),
                 bar=dict(color="#c2703e"),
@@ -1735,8 +1735,9 @@ with tab4:
                 threshold=dict(line=dict(color="#a0926c", width=3), thickness=0.8, value=quo_reno_total),
             ),
         ))
+        _q_label = f"Quoted: ${quo_reno_total:,.0f}" if quo_reno_total else "Quoted: —"
         fig_gauge.add_annotation(
-            x=0.5, y=-0.15, text=f"Quoted: ${quo_reno_total:,.2s}" if quo_reno_total else "Quoted: —",
+            x=0.5, y=-0.15, text=_q_label,
             showarrow=False, font=dict(size=12, color="#666"))
         fig_gauge.update_layout(**CHART_BG, height=280, margin=dict(l=30, r=30, t=40, b=50))
         render_chart(fig_gauge, height=280)
