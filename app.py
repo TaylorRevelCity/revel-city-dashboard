@@ -1641,13 +1641,30 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
+        # Track previous selection to detect what changed
+        prev_sel = st.session_state.get("reno_prev_sel", ["All Properties"])
+
         selected_props = st.multiselect(
             "Property",
             options=["All Properties"] + inv_streets,
             default=["All Properties"],
-            key="reno_props_v5",
+            key="reno_props_v6",
             placeholder="Type to search...",
         )
+
+        # If "All Properties" was just added, clear individual picks
+        if "All Properties" in selected_props and "All Properties" not in prev_sel:
+            st.session_state["reno_props_v6"] = ["All Properties"]
+            st.session_state["reno_prev_sel"] = ["All Properties"]
+            st.rerun()
+        # If an individual property was added while All was selected, remove All
+        elif "All Properties" in selected_props and len(selected_props) > 1:
+            cleaned = [s for s in selected_props if s != "All Properties"]
+            st.session_state["reno_props_v6"] = cleaned
+            st.session_state["reno_prev_sel"] = cleaned
+            st.rerun()
+        else:
+            st.session_state["reno_prev_sel"] = selected_props
 
     # ── filter data ──
     if "All Properties" in selected_props or not selected_props:
