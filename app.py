@@ -388,6 +388,21 @@ def load_am_rehab():
         FROM `{TABLES['am_rehab_costs']}`
     """)
 
+@st.cache_data(ttl=300)
+def load_estimated_cost():
+    return run_query(f"SELECT * FROM `{TABLES['estimated_cost']}`")
+
+@st.cache_data(ttl=300)
+def load_quoted_cost():
+    return run_query(f"""
+        SELECT *, SAFE_CAST(amount AS FLOAT64) AS amount_num
+        FROM `{TABLES['quoted_cost']}`
+    """)
+
+@st.cache_data(ttl=300)
+def load_invoices():
+    return run_query(f"SELECT * FROM `{TABLES['invoice_tracker']}`")
+
 tasks_raw = load_tasks()
 contacts_raw = load_contacts()
 leads_raw = load_connector_leads()
@@ -395,6 +410,9 @@ hot_sheet_raw = load_hot_sheet()
 seller_leads_raw = load_seller_leads()
 am_tasks_raw = load_am_tasks()
 rehab_raw = load_am_rehab()
+est_cost_raw = load_estimated_cost()
+quoted_cost_raw = load_quoted_cost()
+invoices_raw = load_invoices()
 
 import base64 as _b64
 with open("assets/Revel City Homebuyers Logo_full color.png", "rb") as _f:
@@ -406,7 +424,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab1, tab2, tab3 = st.tabs(["Connector Contacts", "AM KPIs", "AM Rehab"])
+tab1, tab2, tab3, tab4 = st.tabs(["Connector Contacts", "AM KPIs", "AM Rehab", "Renovation"])
 
 with tab1:
     # ═══════════════════════════════════════════════════
@@ -1571,3 +1589,263 @@ with tab3:
                key="prop_details_v7",
                custom_css={".ag-header-cell-menu-button": {"display": "none !important"}})
 
+# ═══════════════════════════════════════════════════════════════
+# TAB 4 — RENOVATION
+# ═══════════════════════════════════════════════════════════════
+with tab4:
+    # ── helpers ──
+    def _street(addr):
+        """Extract street portion from full address for matching."""
+        return str(addr).split(",")[0].strip()
+
+    def _fmt_k(v):
+        if v is None or pd.isna(v): return "—"
+        return f"${v/1000:,.2f}K" if abs(v) >= 1000 else f"${v:,.2f}"
+
+    def _fmt_pct(v):
+        if v is None or pd.isna(v): return "—"
+        return f"{v*100:,.2f}%"
+
+    # ── prepare dataframes ──
+    inv = invoices_raw.copy()
+    est = est_cost_raw.copy()
+    quo = quoted_cost_raw.copy()
+    hs = hot_sheet_raw.copy()
+
+    # Normalize Job_Type in invoices (clean up bad entries)
+    inv["Job_Type"] = inv["Job_Type"].apply(
+        lambda x: "Uncategorized" if x is None or (isinstance(x, str) and len(x) > 30) else x)
+
+    # Build street-name lookup for matching across tables
+    inv["street"] = inv["Job_Name"].apply(_street)
+    est["street"] = est["property_address"].apply(_street)
+    quo["street"] = quo["property_address"].apply(_street)
+    hs["street"] = hs["property_address"].apply(_street)
+
+    # Properties that have invoice data
+    inv_streets = sorted(inv["street"].dropna().unique().tolist())
+
+    # ── filters ──
+    ban4, fil4 = st.columns([3, 4])
+    ban4.markdown('''<div class="section-banner"><h2>Renovation Cost Analysis</h2></div>
+<style>
+    div[data-testid="stColumn"]:has(.section-banner) > div {
+        background: #e8eaef !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stColumn"]:has(.section-banner) .section-banner {
+        background: transparent; padding: 0;
+    }
+</style>
+''', unsafe_allow_html=True)
+    with fil4:
+        reno_prop = st.selectbox("Property", ["All Properties"] + inv_streets, key="reno_prop")
+
+    # ── filter data ──
+    if reno_prop != "All Properties":
+        inv_f = inv[inv["street"] == reno_prop]
+        est_f = est[est["street"] == reno_prop]
+        quo_f = quo[quo["street"] == reno_prop]
+        hs_f = hs[hs["street"] == reno_prop]
+    else:
+        inv_f = inv
+        est_f = est
+        quo_f = quo
+        hs_f = hs
+
+    # ── compute metrics ──
+    actual_total = inv_f["Total_Price"].sum() if not inv_f.empty else 0
+    actual_labor = inv_f.loc[inv_f["Resource"] == "Labor", "Total_Price"].sum()
+    actual_material = inv_f.loc[inv_f["Resource"] == "Material", "Total_Price"].sum()
+
+    est_reno = est_f[est_f["cost_category"] == "Renovation"]
+    quo_reno = quo_f[quo_f["cost_category"] == "Renovation"]
+
+    est_reno_total = est_reno["amount"].sum() if not est_reno.empty else 0
+    quo_reno_total = quo_reno["amount_num"].sum() if not quo_reno.empty else 0
+
+    est_all = est_f["amount"].sum() if not est_f.empty else 0
+    quo_all = quo_f["amount_num"].sum() if not quo_f.empty else 0
+
+    n_props_inv = inv_f["street"].nunique() if not inv_f.empty else 0
+
+    # Property-level metrics from estimated cost table
+    if not est_f.empty:
+        prop_info = est_f.drop_duplicates(subset=["property_address"]).iloc[0]
+        arv = float(prop_info.get("list_price_arv", 0) or 0)
+        pp = float(prop_info.get("purchase_price", 0) or 0)
+        sqft = float(prop_info.get("upstairs_sqft", 0) or 0) + float(prop_info.get("basement_sqft", 0) or 0)
+    elif not hs_f.empty:
+        prop_info = hs_f.iloc[0]
+        arv = float(prop_info.get("listing_price", 0) or 0)
+        pp = float(prop_info.get("purchase_price", 0) or 0)
+        sqft = 0
+    else:
+        arv, pp, sqft = 0, 0, 0
+
+    est_net_profit = arv - pp - est_all if arv and pp else None
+    quo_net_profit = arv - pp - quo_all if arv and pp else None
+    est_coc = est_net_profit / (pp + est_all) if pp and est_all and est_net_profit is not None else None
+    quo_coc = quo_net_profit / (pp + quo_all) if pp and quo_all and quo_net_profit is not None else None
+    pct_act_est = actual_total / est_reno_total if est_reno_total else None
+    cost_per_sqft = actual_total / sqft if sqft else None
+    outstanding = quo_reno_total - actual_total
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ═══════════════════════════════════════
+    # ROW 1: Resource Breakdown | Actuals vs Quoted gauge | Reno Amount by Cost Type
+    # ═══════════════════════════════════════
+    r1c1, r1c2, r1c3 = st.columns([1, 1.2, 1.2])
+
+    with r1c1:
+        st.markdown('<p class="chart-title">Resource Breakdown</p>', unsafe_allow_html=True)
+        if actual_labor or actual_material:
+            res_df = pd.DataFrame({"Resource": ["Labor", "Material"], "Amount": [actual_labor, actual_material]})
+            fig_res = go.Figure(go.Pie(
+                labels=res_df["Resource"], values=res_df["Amount"],
+                marker=dict(colors=["#6b8f9e", "#c2703e"], line=dict(color="white", width=2)),
+                texttemplate="%{label}<br>%{value:$,.2s}",
+                textposition="outside", textfont=dict(size=11),
+                hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
+                hole=0,
+            ))
+            fig_res.update_layout(**CHART_BG, height=280, showlegend=True,
+                legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center"),
+                margin=dict(l=30, r=30, t=50, b=30))
+            render_chart(fig_res, height=280)
+        else:
+            st.info("No invoice data for this property.")
+
+    with r1c2:
+        st.markdown('<p class="chart-title">Actuals vs Quoted</p>', unsafe_allow_html=True)
+        gauge_max = max(actual_total, quo_reno_total, 1) * 1.2
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=actual_total,
+            number=dict(prefix="$", valueformat=",.2s"),
+            gauge=dict(
+                axis=dict(range=[0, gauge_max], tickprefix="$", tickformat=".2s"),
+                bar=dict(color="#c2703e"),
+                steps=[
+                    dict(range=[0, quo_reno_total], color="#e8eaef"),
+                ],
+                threshold=dict(line=dict(color="#a0926c", width=3), thickness=0.8, value=quo_reno_total),
+            ),
+        ))
+        fig_gauge.add_annotation(
+            x=0.5, y=-0.15, text=f"Quoted: ${quo_reno_total:,.2s}" if quo_reno_total else "Quoted: —",
+            showarrow=False, font=dict(size=12, color="#666"))
+        fig_gauge.update_layout(**CHART_BG, height=280, margin=dict(l=30, r=30, t=40, b=50))
+        render_chart(fig_gauge, height=280)
+
+    with r1c3:
+        st.markdown('<p class="chart-title">Renovation Amount by Cost Type</p>', unsafe_allow_html=True)
+        bar_df = pd.DataFrame({
+            "Cost Type": ["Rehab Quote\nCost", "Rehab Estimated\nCost", "Actual Spend"],
+            "Amount": [quo_reno_total, est_reno_total, actual_total],
+        })
+        bar_colors = ["#6b8f9e", "#c2703e", "#d4956b"]
+        fig_bar = go.Figure(go.Bar(
+            x=bar_df["Cost Type"], y=bar_df["Amount"],
+            marker=dict(color=bar_colors, line=dict(color="white", width=1)),
+            text=bar_df["Amount"].apply(lambda v: f"${v:,.0f}"),
+            textposition="outside", textfont=dict(size=11),
+            hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
+        ))
+        fig_bar.update_layout(**CHART_BG, height=280, showlegend=False,
+            yaxis=dict(title="Renovation Cost", tickprefix="$", tickformat=",.0s"),
+            margin=dict(l=60, r=20, t=30, b=50))
+        render_chart(fig_bar, height=280)
+
+    st.markdown("<div style='margin: 0.5rem 0;'></div>", unsafe_allow_html=True)
+
+    # ═══════════════════════════════════════
+    # ROW 2: Key Metrics | Actual Renovation Spend donut
+    # ═══════════════════════════════════════
+    r2c1, r2c2 = st.columns([1, 2])
+
+    with r2c1:
+        reno_kpis = [
+            ("Avg Reno Spend",      _fmt_k(actual_total / n_props_inv) if n_props_inv else "—",
+             "Average actual renovation spend per property from invoices."),
+            ("Property Count",      str(n_props_inv),
+             "Number of properties with invoice data in the current filter."),
+            ("ARV",                 f"${arv:,.0f}" if arv else "—",
+             "After Repair Value (list price) for the selected property."),
+            ("Purchase Price",      f"${pp:,.0f}" if pp else "—",
+             "Purchase price for the selected property."),
+            ("Avg Actual Cost/sqft", f"${cost_per_sqft:,.2f}" if cost_per_sqft else "—",
+             "Average actual spend per square foot from invoices."),
+            ("Avg % Act/Est",       _fmt_pct(pct_act_est) if pct_act_est else "—",
+             "Actual renovation spend as a percentage of estimated renovation cost."),
+            ("Estimated Net Profit", _fmt_k(est_net_profit),
+             "ARV minus purchase price minus total estimated costs."),
+            ("Quoted Net Profit",   _fmt_k(quo_net_profit),
+             "ARV minus purchase price minus total quoted costs."),
+            ("Avg Estimated CoC",   _fmt_pct(est_coc),
+             "Estimated cash-on-cash return: net profit / all-in cost."),
+            ("Avg Quoted CoC",      _fmt_pct(quo_coc),
+             "Quoted cash-on-cash return: net profit / all-in cost."),
+            ("Outstanding Amount",  _fmt_k(outstanding),
+             "Quoted renovation total minus actual spend. Negative means over budget."),
+        ]
+        st.markdown('<p class="chart-title">Key Metrics</p>', unsafe_allow_html=True)
+        for label, value, tip in reno_kpis:
+            color = "#c0392b" if isinstance(value, str) and value.startswith("-$") or (isinstance(value, str) and value.startswith("$-")) else "#1a1a2e"
+            st.markdown(
+                f'<div class="kpi-card" data-tooltip="{tip}" style="background:#e8eaef;border-radius:8px;padding:8px 10px;text-align:center;margin-bottom:5px;">'
+                f'<div style="font-size:0.7rem;color:#666;">{label}</div>'
+                f'<div style="font-size:1.05rem;font-weight:700;color:{color};">{value}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    with r2c2:
+        st.markdown('<p class="chart-title">Actual Renovation Spend</p>', unsafe_allow_html=True)
+        if not inv_f.empty:
+            spend_by_type = inv_f.groupby("Job_Type")["Total_Price"].sum().reset_index()
+            spend_by_type = spend_by_type.sort_values("Total_Price", ascending=False)
+            spend_by_type = spend_by_type[spend_by_type["Total_Price"] > 0]
+
+            JOBTYPE_COLORS = {
+                "Painting": "#4e79a7", "Plumbing": "#1b3a5c", "Flooring": "#c2703e",
+                "Demolition": "#7b2d8e", "Electrical": "#e15759", "Trim": "#9467bd",
+                "Doors": "#d4a857", "Drywall": "#e8856e", "HVAC": "#2a9d8f",
+                "Appliances": "#59a14f", "Misc": "#76b7b2", "Tile": "#4e79a7",
+                "Lights": "#f28e2b", "Cabinets": "#b07aa1", "Countertop": "#c8a87a",
+                "Roofing": "#7a9a6d", "Windows": "#5c7a8a", "Siding/Brick": "#8aab8a",
+                "Structure": "#6b8f9e", "Gutters": "#6b9e8a", "Landscaping": "#7ab58a",
+                "Bathroom": "#b5856b", "Kitchen": "#c2703e", "Wood": "#a07850",
+                "Insulation": "#9db5a0", "Deck/Porch": "#4a7a6b", "Cleaning": "#b89060",
+                "Remediation": "#5a8a7a", "Staging": "#d4956b", "Photography": "#c4a882",
+                "Permits": "#7a6b5a", "Utilities": "#6b8a7a", "Vanity": "#b5906b",
+                "Garage": "#8b6f5e", "Driveway": "#9db5a0", "Overhead": "#999",
+                "Uncategorized": "#bbb",
+            }
+            slice_colors = [JOBTYPE_COLORS.get(jt, "#999") for jt in spend_by_type["Job_Type"]]
+            _total = spend_by_type["Total_Price"].sum()
+            spend_by_type["pct"] = spend_by_type["Total_Price"] / _total
+            spend_by_type["label_text"] = spend_by_type.apply(
+                lambda r: f"{r['Job_Type']}<br>${r['Total_Price']/1000:.2f}K" if r["pct"] >= 0.02 else "", axis=1)
+
+            fig_donut = go.Figure(go.Pie(
+                labels=spend_by_type["Job_Type"],
+                values=spend_by_type["Total_Price"],
+                hole=0.45,
+                text=spend_by_type["label_text"],
+                texttemplate="%{text}",
+                textposition="outside",
+                textfont=dict(size=10),
+                marker=dict(colors=slice_colors, line=dict(color="white", width=2)),
+                hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
+            ))
+            fig_donut.update_layout(**CHART_BG, height=550, showlegend=True,
+                legend=dict(title="Job Type", orientation="v", y=0.5, x=1.02),
+                uniformtext=dict(minsize=8, mode="hide"),
+                margin=dict(l=80, r=160, t=30, b=50))
+            render_chart(fig_donut, height=580)
+        else:
+            st.info("No invoice data for this property.")
