@@ -1608,6 +1608,7 @@ _inv = invoices_raw.copy()
 _inv["Job_Type"] = _inv["Job_Type"].apply(
     lambda x: "Uncategorized" if x is None or (isinstance(x, str) and len(x) > 30) else x)
 _inv["street"] = _inv["Job_Name"].apply(_street)
+_inv["actual_cost"] = _inv["Total_Price_w_Tax_and_Discount"].fillna(_inv["Total_Price_w_Tax"]).fillna(_inv["Total_Price"])
 _est = est_cost_raw.copy()
 _est["street"] = _est["property_address"].apply(_street)
 _quo = quoted_cost_raw.copy()
@@ -1679,9 +1680,9 @@ with tab4:
         hs_f = hs[hs["street"].isin(selected_props)]
 
     # ── compute metrics ──
-    actual_total = float(inv_f["Total_Price"].sum()) if not inv_f.empty else 0.0
-    actual_labor = float(inv_f.loc[inv_f["Resource"] == "Labor", "Total_Price"].sum())
-    actual_material = float(inv_f.loc[inv_f["Resource"] == "Material", "Total_Price"].sum())
+    actual_total = float(inv_f["actual_cost"].sum()) if not inv_f.empty else 0.0
+    actual_labor = float(inv_f.loc[inv_f["Resource"] == "Labor", "actual_cost"].sum())
+    actual_material = float(inv_f.loc[inv_f["Resource"] == "Material", "actual_cost"].sum())
 
     est_reno = est_f[est_f["cost_category"] == "Renovation"]
     quo_reno = quo_f[quo_f["cost_category"] == "Renovation"]
@@ -1830,9 +1831,9 @@ with tab4:
     with r2c2:
         st.markdown('<p class="chart-title">Actual Renovation Spend</p>', unsafe_allow_html=True)
         if not inv_f.empty:
-            spend_by_type = inv_f.groupby("Job_Type")["Total_Price"].sum().reset_index()
-            spend_by_type = spend_by_type.sort_values("Total_Price", ascending=False)
-            spend_by_type = spend_by_type[spend_by_type["Total_Price"] > 0]
+            spend_by_type = inv_f.groupby("Job_Type")["actual_cost"].sum().reset_index()
+            spend_by_type = spend_by_type.sort_values("actual_cost", ascending=False)
+            spend_by_type = spend_by_type[spend_by_type["actual_cost"] > 0]
 
             JOBTYPE_COLORS = {
                 "Painting": "#4e79a7", "Plumbing": "#1b3a5c", "Flooring": "#c2703e",
@@ -1850,14 +1851,14 @@ with tab4:
                 "Uncategorized": "#bbb",
             }
             slice_colors = [JOBTYPE_COLORS.get(jt, "#999") for jt in spend_by_type["Job_Type"]]
-            _total = spend_by_type["Total_Price"].sum()
-            spend_by_type["pct"] = spend_by_type["Total_Price"] / _total
+            _total = spend_by_type["actual_cost"].sum()
+            spend_by_type["pct"] = spend_by_type["actual_cost"] / _total
             spend_by_type["label_text"] = spend_by_type.apply(
-                lambda r: f"{r['Job_Type']}<br>${r['Total_Price']/1000:.2f}K" if r["pct"] >= 0.02 else "", axis=1)
+                lambda r: f"{r['Job_Type']}<br>${r['actual_cost']/1000:.2f}K" if r["pct"] >= 0.02 else "", axis=1)
 
             fig_donut = go.Figure(go.Pie(
                 labels=spend_by_type["Job_Type"],
-                values=spend_by_type["Total_Price"],
+                values=spend_by_type["actual_cost"],
                 hole=0.45,
                 text=spend_by_type["label_text"],
                 texttemplate="%{text}",
