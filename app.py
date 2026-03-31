@@ -1641,27 +1641,25 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        all_props = st.checkbox("All Properties", value=True, key="reno_all_v3")
         selected_props = st.multiselect(
             "Property",
-            options=inv_streets,
-            default=[],
-            key="reno_props_v4",
+            options=["All Properties"] + inv_streets,
+            default=["All Properties"],
+            key="reno_props_v5",
             placeholder="Type to search...",
-            disabled=all_props,
         )
 
-    # ── filter data (All checked or nothing picked = all data) ──
-    if not all_props and selected_props:
-        inv_f = inv[inv["street"].isin(selected_props)]
-        est_f = est[est["street"].isin(selected_props)]
-        quo_f = quo[quo["street"].isin(selected_props)]
-        hs_f = hs[hs["street"].isin(selected_props)]
-    else:
+    # ── filter data ──
+    if "All Properties" in selected_props or not selected_props:
         inv_f = inv
         est_f = est
         quo_f = quo
         hs_f = hs
+    else:
+        inv_f = inv[inv["street"].isin(selected_props)]
+        est_f = est[est["street"].isin(selected_props)]
+        quo_f = quo[quo["street"].isin(selected_props)]
+        hs_f = hs[hs["street"].isin(selected_props)]
 
     # ── compute metrics ──
     actual_total = float(inv_f["Total_Price"].sum()) if not inv_f.empty else 0.0
