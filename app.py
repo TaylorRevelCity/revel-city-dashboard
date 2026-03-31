@@ -1641,16 +1641,37 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        selected_props = st.multiselect(
-            "Property",
-            options=inv_streets,
-            default=[],
-            key="reno_props",
-            placeholder="All Properties — type to search...",
-        )
+        with st.expander("Property", expanded=False):
+            for s in inv_streets:
+                if f"reno_{s}" not in st.session_state:
+                    st.session_state[f"reno_{s}"] = True
 
-    # ── filter data (empty = all) ──
-    if selected_props:
+            prev_all_reno = st.session_state.get("reno_all_prev", True)
+            all_reno = st.checkbox("All", value=True, key="reno_all")
+            if prev_all_reno and not all_reno:
+                for s in inv_streets:
+                    st.session_state[f"reno_{s}"] = False
+            elif not prev_all_reno and all_reno:
+                for s in inv_streets:
+                    st.session_state[f"reno_{s}"] = True
+            st.session_state["reno_all_prev"] = all_reno
+
+            reno_search = st.text_input("Search", key="reno_search", placeholder="Type and press Enter...")
+            visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
+
+            selected_props = []
+            for s in visible_streets:
+                checked = st.checkbox(s, key=f"reno_{s}", disabled=all_reno)
+                if all_reno or checked:
+                    selected_props.append(s)
+            # Keep checked properties that are hidden by search
+            if reno_search:
+                for s in inv_streets:
+                    if s not in visible_streets and (all_reno or st.session_state.get(f"reno_{s}", False)):
+                        selected_props.append(s)
+
+    # ── filter data ──
+    if selected_props and len(selected_props) < len(inv_streets):
         inv_f = inv[inv["street"].isin(selected_props)]
         est_f = est[est["street"].isin(selected_props)]
         quo_f = quo[quo["street"].isin(selected_props)]
