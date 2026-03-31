@@ -1640,28 +1640,33 @@ with tab4:
     }
 </style>
 ''', unsafe_allow_html=True)
+    _PROP_KEY = "reno_props_v8"
+    _PREV_KEY = "_reno_prev_v8"
+
+    # Initialize on first run
+    if _PROP_KEY not in st.session_state:
+        st.session_state[_PROP_KEY] = ["All Properties"]
+        st.session_state[_PREV_KEY] = ["All Properties"]
+
     def _on_prop_change():
-        sel = st.session_state.get("reno_props_v7", [])
-        prev = st.session_state.get("_reno_prev", ["All Properties"])
+        sel = st.session_state[_PROP_KEY]
+        prev = st.session_state.get(_PREV_KEY, ["All Properties"])
         had_all = "All Properties" in prev
         has_all = "All Properties" in sel
         indiv = [s for s in sel if s != "All Properties"]
 
         if has_all and not had_all:
-            # User just clicked "All Properties" → keep only All
-            st.session_state["reno_props_v7"] = ["All Properties"]
+            st.session_state[_PROP_KEY] = ["All Properties"]
         elif has_all and indiv:
-            # User added an individual while All was selected → remove All
-            st.session_state["reno_props_v7"] = indiv
+            st.session_state[_PROP_KEY] = indiv
 
-        st.session_state["_reno_prev"] = list(st.session_state["reno_props_v7"])
+        st.session_state[_PREV_KEY] = list(st.session_state[_PROP_KEY])
 
     with fil4:
         selected_props = st.multiselect(
             "Property",
             options=["All Properties"] + inv_streets,
-            default=["All Properties"],
-            key="reno_props_v7",
+            key=_PROP_KEY,
             placeholder="Type to search...",
             on_change=_on_prop_change,
         )
