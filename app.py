@@ -1642,6 +1642,11 @@ with tab4:
 ''', unsafe_allow_html=True)
     with fil4:
         with st.expander("Property", expanded=False):
+            # Initialize checkbox state on first run
+            for s in inv_streets:
+                if f"reno_{s}" not in st.session_state:
+                    st.session_state[f"reno_{s}"] = True
+
             prev_all_reno = st.session_state.get("reno_all_prev", True)
             all_reno = st.checkbox("All", value=True, key="reno_all")
             if prev_all_reno and not all_reno:
@@ -1651,10 +1656,10 @@ with tab4:
                 for s in inv_streets:
                     st.session_state[f"reno_{s}"] = True
             st.session_state["reno_all_prev"] = all_reno
+
             selected_props = []
             for s in inv_streets:
-                default = all_reno if f"reno_{s}" not in st.session_state else st.session_state[f"reno_{s}"]
-                checked = st.checkbox(s, value=default, key=f"reno_{s}", disabled=all_reno)
+                checked = st.checkbox(s, key=f"reno_{s}", disabled=all_reno)
                 if all_reno or checked:
                     selected_props.append(s)
 
