@@ -1592,38 +1592,33 @@ with tab3:
 # ═══════════════════════════════════════════════════════════════
 # TAB 4 — RENOVATION
 # ═══════════════════════════════════════════════════════════════
+def _street(addr):
+    return str(addr).split(",")[0].strip()
+
+def _fmt_k(v):
+    if v is None or pd.isna(v): return "—"
+    return f"${v/1000:,.2f}K" if abs(v) >= 1000 else f"${v:,.2f}"
+
+def _fmt_pct(v):
+    if v is None or pd.isna(v): return "—"
+    return f"{v*100:,.2f}%"
+
+# Prepare data once (outside fragment so it's not re-copied on filter change)
+_inv = invoices_raw.copy()
+_inv["Job_Type"] = _inv["Job_Type"].apply(
+    lambda x: "Uncategorized" if x is None or (isinstance(x, str) and len(x) > 30) else x)
+_inv["street"] = _inv["Job_Name"].apply(_street)
+_est = est_cost_raw.copy()
+_est["street"] = _est["property_address"].apply(_street)
+_quo = quoted_cost_raw.copy()
+_quo["street"] = _quo["property_address"].apply(_street)
+_hs = hot_sheet_raw.copy()
+_hs["street"] = _hs["property_address"].apply(_street)
+_inv_streets = sorted(_inv["street"].dropna().unique().tolist())
+
 with tab4:
-    # ── helpers ──
-    def _street(addr):
-        """Extract street portion from full address for matching."""
-        return str(addr).split(",")[0].strip()
-
-    def _fmt_k(v):
-        if v is None or pd.isna(v): return "—"
-        return f"${v/1000:,.2f}K" if abs(v) >= 1000 else f"${v:,.2f}"
-
-    def _fmt_pct(v):
-        if v is None or pd.isna(v): return "—"
-        return f"{v*100:,.2f}%"
-
-    # ── prepare dataframes ──
-    inv = invoices_raw.copy()
-    est = est_cost_raw.copy()
-    quo = quoted_cost_raw.copy()
-    hs = hot_sheet_raw.copy()
-
-    # Normalize Job_Type in invoices (clean up bad entries)
-    inv["Job_Type"] = inv["Job_Type"].apply(
-        lambda x: "Uncategorized" if x is None or (isinstance(x, str) and len(x) > 30) else x)
-
-    # Build street-name lookup for matching across tables
-    inv["street"] = inv["Job_Name"].apply(_street)
-    est["street"] = est["property_address"].apply(_street)
-    quo["street"] = quo["property_address"].apply(_street)
-    hs["street"] = hs["property_address"].apply(_street)
-
-    # Properties that have invoice data
-    inv_streets = sorted(inv["street"].dropna().unique().tolist())
+    inv, est, quo, hs = _inv, _est, _quo, _hs
+    inv_streets = _inv_streets
 
     # ── filters ──
     ban4, fil4 = st.columns([3, 4])
