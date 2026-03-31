@@ -1660,8 +1660,16 @@ with tab4:
                 if f"reno_{s}" not in st.session_state:
                     st.session_state[f"reno_{s}"] = True
 
+            reno_search = st_keyup("Search", key="reno_search", placeholder="Type to filter...", debounce=300)
+
+            # When user types a search, auto-uncheck All and only check matches
+            if reno_search and st.session_state.get("reno_all", True):
+                st.session_state["reno_all"] = False
+                for s in inv_streets:
+                    st.session_state[f"reno_{s}"] = reno_search.lower() in s.lower()
+
             prev_all_reno = st.session_state.get("reno_all_prev", True)
-            all_reno = st.checkbox("All", value=True, key="reno_all")
+            all_reno = st.checkbox("All", key="reno_all")
             if prev_all_reno and not all_reno:
                 for s in inv_streets:
                     st.session_state[f"reno_{s}"] = False
@@ -1670,7 +1678,6 @@ with tab4:
                     st.session_state[f"reno_{s}"] = True
             st.session_state["reno_all_prev"] = all_reno
 
-            reno_search = st_keyup("Search", key="reno_search", placeholder="Type to filter...", debounce=300)
             visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
 
             selected_props = []
