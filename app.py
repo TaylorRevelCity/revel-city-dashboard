@@ -1641,20 +1641,18 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        selected_props = st.multiselect(
+        reno_prop = st.selectbox(
             "Property",
-            options=inv_streets,
-            default=[],
-            key="reno_props",
-            placeholder="All Properties — type to search...",
+            options=["All Properties"] + inv_streets,
+            key="reno_prop",
         )
 
-    # ── filter data (empty = all) ──
-    if selected_props:
-        inv_f = inv[inv["street"].isin(selected_props)]
-        est_f = est[est["street"].isin(selected_props)]
-        quo_f = quo[quo["street"].isin(selected_props)]
-        hs_f = hs[hs["street"].isin(selected_props)]
+    # ── filter data ──
+    if reno_prop != "All Properties":
+        inv_f = inv[inv["street"] == reno_prop]
+        est_f = est[est["street"] == reno_prop]
+        quo_f = quo[quo["street"] == reno_prop]
+        hs_f = hs[hs["street"] == reno_prop]
     else:
         inv_f = inv
         est_f = est
