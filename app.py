@@ -1641,14 +1641,29 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
-        reno_prop = st.selectbox("Property", ["All Properties"] + inv_streets, key="reno_prop")
+        with st.expander("Property", expanded=False):
+            prev_all_reno = st.session_state.get("reno_all_prev", True)
+            all_reno = st.checkbox("All", value=True, key="reno_all")
+            if prev_all_reno and not all_reno:
+                for s in inv_streets:
+                    st.session_state[f"reno_{s}"] = False
+            elif not prev_all_reno and all_reno:
+                for s in inv_streets:
+                    st.session_state[f"reno_{s}"] = True
+            st.session_state["reno_all_prev"] = all_reno
+            selected_props = []
+            for s in inv_streets:
+                default = all_reno if f"reno_{s}" not in st.session_state else st.session_state[f"reno_{s}"]
+                checked = st.checkbox(s, value=default, key=f"reno_{s}", disabled=all_reno)
+                if all_reno or checked:
+                    selected_props.append(s)
 
     # ── filter data ──
-    if reno_prop != "All Properties":
-        inv_f = inv[inv["street"] == reno_prop]
-        est_f = est[est["street"] == reno_prop]
-        quo_f = quo[quo["street"] == reno_prop]
-        hs_f = hs[hs["street"] == reno_prop]
+    if selected_props and len(selected_props) < len(inv_streets):
+        inv_f = inv[inv["street"].isin(selected_props)]
+        est_f = est[est["street"].isin(selected_props)]
+        quo_f = quo[quo["street"].isin(selected_props)]
+        hs_f = hs[hs["street"].isin(selected_props)]
     else:
         inv_f = inv
         est_f = est
