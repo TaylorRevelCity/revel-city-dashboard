@@ -1642,6 +1642,19 @@ with tab4:
 </style>
 ''', unsafe_allow_html=True)
     with fil4:
+        # Selection summary above expander
+        _prev_sel = [s for s in inv_streets if st.session_state.get(f"reno_{s}", True)]
+        if len(_prev_sel) == len(inv_streets) or not _prev_sel:
+            _sel_label = "All Properties"
+        elif len(_prev_sel) <= 3:
+            _sel_label = ", ".join(_prev_sel)
+        else:
+            _sel_label = f"{_prev_sel[0]}, {_prev_sel[1]} +{len(_prev_sel)-2} more"
+        st.markdown(
+            f'<div style="font-size:0.8rem;color:#555;padding:2px 4px;margin-bottom:-8px;">'
+            f'Selected: <b>{_sel_label}</b></div>',
+            unsafe_allow_html=True,
+        )
         with st.expander("Property", expanded=False):
             for s in inv_streets:
                 if f"reno_{s}" not in st.session_state:
