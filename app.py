@@ -1655,6 +1655,7 @@ with tab4:
             f'Selected: <b>{_sel_label}</b></div>',
             unsafe_allow_html=True,
         )
+        reno_search = st_keyup("", key="reno_search", placeholder="Type to filter properties...", debounce=300)
         with st.expander("Property", expanded=False):
             for s in inv_streets:
                 if f"reno_{s}" not in st.session_state:
@@ -1670,7 +1671,6 @@ with tab4:
                     st.session_state[f"reno_{s}"] = True
             st.session_state["reno_all_prev"] = all_reno
 
-            reno_search = st_keyup("Search", key="reno_search", placeholder="Type to filter...", debounce=300)
             visible_streets = [s for s in inv_streets if reno_search.lower() in s.lower()] if reno_search else inv_streets
 
             selected_props = []
