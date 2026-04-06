@@ -712,9 +712,8 @@ with tab1:
 with tab2:
     today = date.today()
     current_year = today.year
-    # Quarter boundaries (current quarter for lead conversion)
-    q_month = ((today.month - 1) // 3) * 3 + 1
-    qtr_start = date(current_year, q_month, 1)
+    # Rolling 90-day window
+    qtr_start = today - timedelta(days=90)
     qtr_end = today
 
     leads = leads_raw.copy()
@@ -860,7 +859,7 @@ with tab2:
         f"Average projected profit per deal for properties closing in {current_year}, based on Hot Sheet closing dates (shifted +3 months for fiscal year).",
         f"Average offer amount ÷ asking price for all leads with both fields filled in, created in {current_year}.",
         f"Average purchase price ÷ asking price for all leads with both fields filled in, created in {current_year}.",
-        f"% of leads created this quarter (Q{(today.month-1)//3+1} {current_year}) that resulted in a purchase price being set.",
+        f"% of leads created in the last 90 days that resulted in a purchase price being set.",
     ]
     for col, label, value, tip in zip(
         [kc1, kc2, kc3, kc4, kc5],
@@ -989,9 +988,9 @@ with tab2:
     # ── Row 2 ──
     r2c1, r2c2, r2c3 = st.columns(3)
 
-    # 4) Avg Asking vs Offer vs Purchase (Current Qtr)
+    # 4) Avg Asking vs Offer vs Purchase (Last 90 Days)
     with r2c1:
-        st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Current Qtr)</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Avg Asking vs Offer vs Purchase (Last 90 Days)</p>', unsafe_allow_html=True)
         cl_qtr_data = leads[(pd.to_datetime(leads["created_on"]).dt.date >= qtr_start) & (pd.to_datetime(leads["created_on"]).dt.date <= qtr_end)]
         sl_qtr_data = sl_chart[(pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date >= qtr_start) & (pd.to_datetime(sl_chart["created_on"], errors="coerce").dt.date <= qtr_end)]
         combined_asking = pd.concat([cl_qtr_data["asking_price"], sl_qtr_data["asking_price"]], ignore_index=True)
@@ -1023,7 +1022,7 @@ with tab2:
 
     # 5) Offers By Week
     with r2c2:
-        st.markdown('<p class="chart-title">Offers By Week (Current Qtr)</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Offers By Week (Last 90 Days)</p>', unsafe_allow_html=True)
         cl_offers_qtr = leads[
             (leads["offer_amount"].notna()) &
             (pd.to_datetime(leads["created_on"], errors="coerce").dt.date >= qtr_start) &
@@ -1065,7 +1064,7 @@ with tab2:
 
     # 6) Purchase vs Leads
     with r2c3:
-        st.markdown('<p class="chart-title">Purchase vs Leads (Current Qtr)</p>', unsafe_allow_html=True)
+        st.markdown('<p class="chart-title">Purchase vs Leads (Last 90 Days)</p>', unsafe_allow_html=True)
         all_hs_addresses = set(
             hs_chart.loc[hs_chart["status"] != "Fell Out of Contract", "property_address"]
             .dropna().str.strip().str.lower()
