@@ -344,7 +344,10 @@ NAME_NORMALIZE = {
 }
 
 def normalize_name(name):
-    if not name:
+    if name is None or (hasattr(name, '__class__') and pd.isna(name)):
+        return "Unknown"
+    name = str(name)
+    if not name.strip():
         return "Unknown"
     return NAME_NORMALIZE.get(name.strip().lower(), name.strip())
 
