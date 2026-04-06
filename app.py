@@ -784,13 +784,13 @@ with tab2:
     for _, row in leads[["connector_property", "projected_profit"]].dropna(subset=["connector_property"]).iterrows():
         addr = row["connector_property"].strip().lower()
         if addr not in profit_by_address:
-            profit_by_address[addr] = row["projected_profit"] or 0
+            profit_by_address[addr] = float(row["projected_profit"] or 0)
     for _, row in sl_chart[["property_address", "project_profit"]].dropna(subset=["property_address"]).iterrows():
         addr = row["property_address"].strip().lower()
         if addr not in profit_by_address:
-            profit_by_address[addr] = row["project_profit"] or 0
+            profit_by_address[addr] = float(row["project_profit"] or 0)
     future_profit = sum(
-        profit_by_address.get(addr, 0) or 0
+        float(profit_by_address.get(addr, 0) or 0)
         for addr in active_addresses
     )
     # Build address → (closing_date, profit) map from both lead tables (ConnectorLeads takes precedence)
